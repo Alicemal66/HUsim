@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill /PID 12192 /F)",
+      "Bash(cmd /c \"taskkill /PID 12192 /F\")",
+      "Bash(cmd /c \"taskkill /F /IM python.exe\")",
+      "Bash(cmd /c \"taskkill /F /PID 12192\")",
+      "Bash(cmd /c \"wmic process where ProcessId=12192 get Name,CommandLine 2>&1\")",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8001)",
+      "Bash(cmd /c \"taskkill /F /PID 11872\")",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8002)",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8003)",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8004)",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8005)",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8006)",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8009)",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8010)",
+      "Bash(cmd /c \"for /f \\\\\"tokens=5\\\\\" %a in \\('netstat -ano ^| find \\\\\":8000 \\\\\"'\\) do taskkill /F /PID %a\")",
+      "Bash(cmd /c \"wmic process where ProcessId=12192 get ProcessId,Name,CommandLine\")",
+      "Bash(curl -s \"http://localhost:5173/api/scenarios\")",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe -c ' *)"
+    ]
+  }
+}

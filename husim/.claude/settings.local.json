@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(python3 -c \"import sys,json; lines=sys.stdin.read\\(\\).strip\\(\\).split\\('\\\\n'\\); [print\\(json.loads\\(l\\).get\\('message',{}\\).get\\('content',''\\)[:500] if isinstance\\(json.loads\\(l\\).get\\('message',{}\\).get\\('content',''\\), str\\) else ''\\) for l in lines[-5:] if l]\")",
+      "Bash(python:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cmd /c \"npx tsc --noEmit 2>&1\")",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Bash(venv/Scripts/python.exe -c ':*)",
+      "Bash(\"venv/Scripts/python.exe\" -m pip list)",
+      "Bash(C:/Users/cemal/OneDrive/Desktop/HÜsim/venv/Scripts/python.exe:*)",
+      "Bash(ls /c/Users/cemal/OneDrive/Desktop/HÜsim/venv/Scripts/python*)",
+      "Bash(C:/Users/cemal/AppData/Local/Programs/Python/Python310/python.exe:*)",
+      "Bash(npm run:*)",
+      "Bash(\"venv/Scripts/python.exe\" -m uvicorn main:app --port 8000)",
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(curl -s http://localhost:8000/api/scenarios)",
+      "Bash(python3 -c ':*)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(curl -s \"http://localhost:8000/api/scenarios/demo_t_3vehicles/frames\")",
+      "Bash(curl -sv \"http://localhost:8000/api/scenarios/demo_t_3vehicles/frames\")",
+      "Bash(curl -s \"http://localhost:8000/openapi.json\")",
+      "Bash(curl:*)",
+      "Bash(\"venv/Scripts/uvicorn.exe\" main:app --reload --port 8000 --host 0.0.0.0)"
+    ]
+  }
+}
