@@ -1,4 +1,4 @@
-"""HÜsim — Senaryo üretici"""
+"""HÜsim — Scenario generator"""
 import json
 import math
 import random
@@ -22,11 +22,11 @@ class ScenarioGenerator:
         vehicle_count: int,        # 2-8
         difficulty: str,           # "kolay", "orta", "zor", "kritik"
         special_condition: str,    # "normal", "dar_yol", "egim", "kor_kavsak"
-        weather_params: dict,      # hava optimizasyon sonuçları
+        weather_params: dict,      # weather optimization results
         name: str = "",
     ) -> dict:
         """
-        Tam senaryo üret ve generated_scenarios/ klasörüne kaydet.
+        Generate a complete scenario and save to generated_scenarios/ folder.
         """
         import time
         scenario_id = f"gen_{intersection_type}_{vehicle_count}v_{difficulty}_{int(time.time()) % 100000}"
@@ -39,7 +39,7 @@ class ScenarioGenerator:
         ego_route = _make_ego_route(intersection_type)
         agent_routes = _make_agent_routes(intersection_type, vehicle_count - 1)
 
-        # Zorluk faktörleri
+        # Difficulty factors
         difficulty_params = {
             "kolay":   {"speed_mult": 0.7, "jitter": 0.05, "brake_prob": 0.02},
             "orta":    {"speed_mult": 1.0, "jitter": 0.15, "brake_prob": 0.08},
@@ -48,10 +48,10 @@ class ScenarioGenerator:
         }
         dp = difficulty_params.get(difficulty, difficulty_params["orta"])
 
-        # Hava etkisi: max_speed_factor
+        # Weather effect: max_speed_factor
         speed_factor = weather_params.get("max_speed_factor", 1.0) if weather_params else 1.0
 
-        # Özel koşullar
+        # Special conditions
         special_mods = {
             "normal":     {"road_width_mult": 1.0, "slope": 0.0},
             "dar_yol":    {"road_width_mult": 0.55, "slope": 0.0},
@@ -71,7 +71,7 @@ class ScenarioGenerator:
             ex, ey, eh, es = _interpolate_route(ego_route, t, total_time)
             es *= dp["speed_mult"] * speed_factor
             if sm["slope"] > 0:
-                # Eğim etkisi: t > 0.5 iken yavaşla
+                # Grade effect: slow down when t > 0.5
                 if t / total_time > 0.5:
                     es *= (1.0 - sm["slope"] * 3)
 
@@ -85,13 +85,13 @@ class ScenarioGenerator:
                 "width": 3.5,
             })
 
-            # Ajanlar
+            # Agents
             for ai, route in enumerate(agent_routes):
                 key = f"a{ai}"
                 ax, ay, ah, asp = _interpolate_route(route, t, total_time)
                 asp *= dp["speed_mult"] * speed_factor
 
-                # Beklenmedik fren
+                # Unexpected braking
                 if random.random() < dp["brake_prob"] * 0.01:
                     braking_states[key] = True
                 if braking_states.get(key):
@@ -99,7 +99,7 @@ class ScenarioGenerator:
                     if random.random() < 0.05:
                         braking_states[key] = False
 
-                # Çarpışmaya yakın: yavaşla
+                # Close to collision: slow down
                 dist = math.hypot(ax - ex, ay - ey)
                 if dist < 10.0:
                     asp = max(0.0, asp * (dist / 10.0))
@@ -142,6 +142,6 @@ class ScenarioGenerator:
         out_path = GENERATED_PATH / f"{scenario_id}.json"
         with open(out_path, "w", encoding="utf-8") as fp:
             json.dump(result, fp, ensure_ascii=False)
-        logger.info(f"Senaryo üretildi: {out_path}")
+        logger.info(f"Scenario generated: {out_path}")
 
         return result

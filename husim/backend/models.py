@@ -1,4 +1,4 @@
-"""Pydantic veri modelleri — HÜsim backend"""
+"""Pydantic data models — HÜsim backend"""
 from pydantic import BaseModel
 from typing import Optional, List
 from enum import Enum
@@ -30,9 +30,9 @@ class RiskLevel(str, Enum):
 
 class WeatherInput(BaseModel):
     weather_type: WeatherType
-    temperature: float          # -30 ile +50 arası (°C)
+    temperature: float          # -30 to +50 (°C)
     wind_speed: float           # 0-120 km/h
-    visibility: float           # 0-1000 metre
+    visibility: float           # 0-1000 metres
     ground_type: GroundType
 
 
@@ -77,28 +77,28 @@ class Point(BaseModel):
 
 class CollisionReport(BaseModel):
     risk_score: float           # 0-100
-    collision_risks: List[dict] # hangi araçla risk var
-    time_to_collision: Optional[float]  # saniye
+    collision_risks: List[dict] # which vehicle is at risk
+    time_to_collision: Optional[float]  # seconds
 
 
 class SimulationMetrics(BaseModel):
-    # Güvenlik
+    # Safety
     collision_count: int = 0
     near_miss_count: int = 0
     min_safety_distance: float = 0.0
     risk_score: float = 0.0
 
-    # Verimlilik
+    # Efficiency
     completion_time: float = 0.0
     path_efficiency: float = 0.0
     average_speed: float = 0.0
 
-    # Yumuşaklık
+    # Smoothness
     max_acceleration: float = 0.0
     max_deceleration: float = 0.0
     steering_smoothness: float = 0.0
 
-    # Görev tamamlama
+    # Task completion
     task_completed: bool = False
     completion_rate: float = 0.0
     algorithm_name: str = ""
@@ -107,7 +107,7 @@ class SimulationMetrics(BaseModel):
 class SimulationStatus(BaseModel):
     simulation_id: str
     status: str       # "running" | "completed" | "failed" | "stopped"
-    progress: float   # 0-100
+    progress: float   # 0–100
     current_frame: int
     total_frames: int
     metrics: Optional[SimulationMetrics] = None

@@ -1,8 +1,8 @@
-"""HÜsim — Ekskavatör modeli (kazı döngüsü ve üretim hesaplama)"""
+"""HÜsim — Excavator model (digging cycle and production calculation)"""
 
 
 class ExcavatorModel:
-    """Maden ekskavatörü için kazı döngüsü ve üretim simülasyonu."""
+    """Digging cycle and production simulation for a mining excavator."""
 
     IDLE_STATE = "beklemede"
     DIGGING_STATE = "kazıyor"
@@ -20,7 +20,7 @@ class ExcavatorModel:
         self.current_truck_id: str | None = None
         self._state_elapsed: float = 0.0
 
-        # Ortalama döngü süreleri (saniye)
+        # Average cycle durations (seconds)
         self._phase_times = {
             self.DIGGING_STATE: 15.0,
             self.SWINGING_STATE: 10.0,

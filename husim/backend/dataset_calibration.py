@@ -1,6 +1,6 @@
 """
-Levin Vehicle Telematics dataset'inden hava koşulu bazlı
-araç performans parametreleri hesapla.
+Calculate weather-condition-based vehicle performance parameters
+from the Levin Vehicle Telematics dataset.
 """
 import logging
 from pathlib import Path
@@ -79,35 +79,35 @@ def _find_dataset() -> Path | None:
 
 def load_and_calibrate() -> None:
     """
-    Dataset dosyasını oku.
-    Okuyabiliyorsan gerçek değerleri hesapla ve CALIBRATED_PARAMS'ı güncelle.
-    Okuyamıyorsan varsayılan değerleri kullan. Her durumda crash etme.
+    Read the dataset file.
+    If readable, compute real values and update CALIBRATED_PARAMS.
+    If not, use default values. Do not crash in any case.
     """
     global _calibration_summary
 
     try:
         import pandas as pd
     except ImportError:
-        logger.warning("pandas bulunamadı — dataset kalibrasyon atlandı.")
+        logger.warning("pandas not found — dataset calibration skipped.")
         _calibration_summary["notes"] = "pandas yüklü değil — varsayılan değerler kullanılıyor."
         return
 
     try:
         dataset_path = _find_dataset()
         if not dataset_path:
-            logger.warning("Levin Telematics dataset bulunamadı.")
+            logger.warning("Levin Telematics dataset not found.")
             _calibration_summary["notes"] = "Dataset dosyası bulunamadı — varsayılan değerler kullanılıyor."
             return
 
-        logger.info(f"Levin Telematics dataset yükleniyor: {dataset_path}")
+        logger.info(f"Loading Levin Telematics dataset: {dataset_path}")
         df = pd.read_csv(dataset_path, nrows=10000, low_memory=False)
         columns = list(df.columns)
-        logger.info(f"Dataset sütunları ({len(columns)}): {columns[:10]}...")
+        logger.info(f"Dataset columns ({len(columns)}): {columns[:10]}...")
 
         _calibration_summary["columns_found"] = columns
         _calibration_summary["row_count"] = len(df)
 
-        # Sütun eşleştirme
+        # Column mapping
         speed_col = next((c for c in ["vehicle_speed_kph", "speed", "velocity", "v_kmh", "speed_kmh"] if c in columns), None)
         brake_col = next((c for c in ["brake_pedal_pos_percent", "brake", "deceleration"] if c in columns), None)
         brake_temp_col = next((c for c in ["brake_temp_c", "brake_temp"] if c in columns), None)
@@ -128,7 +128,7 @@ def load_and_calibrate() -> None:
             "notes": f"Levin Telematics Dataset başarıyla yüklendi ({len(df):,} satır, {len(columns)} sütun).",
         })
 
-        # Hava koşulu bazlı kalibrasyon — humidity proxy kullan
+        # Weather-condition-based calibration — use humidity as proxy
         if humidity_col and speed_col:
             high_hum = df[df[humidity_col] > 75]
             low_hum = df[df[humidity_col] <= 75]
@@ -143,28 +143,28 @@ def load_and_calibrate() -> None:
                     CALIBRATED_PARAMS["rainy"]["speed_factor"] = observed_factor
                     CALIBRATED_PARAMS["rainy"]["from_dataset"] = True
                     CALIBRATED_PARAMS["rainy"]["confidence"] = "yüksek (dataset'ten hesaplandı)"
-                    logger.info(f"Yağmurlu hız faktörü dataset'ten: {observed_factor}")
+                    logger.info(f"Rainy speed factor from dataset: {observed_factor}")
 
-        # Fren faktörü normalizasyonu
+        # Brake factor normalization
         if brake_temp_col and avg_brake_temp:
             brake_temp_factor = round(max(1.0, min(2.0, avg_brake_temp / 180.0)), 3)
             adjusted = round(brake_temp_factor * 1.85, 2)
             CALIBRATED_PARAMS["rainy"]["brake_factor"] = adjusted
-            logger.info(f"Fren faktörü (brake_temp normalize): {adjusted}")
+            logger.info(f"Brake factor (brake_temp normalized): {adjusted}")
 
-        # Kalan koşullar için kaynak etiketi ekle
+        # Add source label for remaining conditions
         for key in CALIBRATED_PARAMS:
             CALIBRATED_PARAMS[key]["source"] = "Levin Telematics Dataset (N=15,847 araç)"
 
-        logger.info("Levin Telematics kalibrasyon tamamlandı.")
+        logger.info("Levin Telematics calibration completed.")
 
     except Exception as e:
-        logger.error(f"Dataset kalibrasyon hatası: {e}")
+        logger.error(f"Dataset calibration error: {e}")
         _calibration_summary["notes"] = f"Dataset yükleme hatası — varsayılan değerler kullanılıyor."
 
 
 def get_calibration_summary() -> dict:
-    """Frontend için kalibrasyon özeti döndür."""
+    """Return calibration summary for the frontend."""
     return {
         "calibration_info": _calibration_summary,
         "parameters": {

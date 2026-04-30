@@ -44,7 +44,7 @@ export default function WeatherPanel() {
         <p className="text-xs text-slate-400 mt-0.5">{tr.weather.subtitle}</p>
       </div>
 
-      {/* Hava Tipi Butonları */}
+      {/* Weather Type Buttons */}
       <div>
         <label className="text-xs text-slate-400 mb-1 block">{tr.weather.type}</label>
         <div className="grid grid-cols-3 gap-1">
@@ -65,7 +65,7 @@ export default function WeatherPanel() {
         </div>
       </div>
 
-      {/* Sıcaklık */}
+      {/* Temperature */}
       <SliderField
         label={`${tr.weather.temperature}: ${weather.temperature}°C`}
         min={-30}
@@ -75,7 +75,7 @@ export default function WeatherPanel() {
         color={weather.temperature < 0 ? '#60a5fa' : weather.temperature > 35 ? '#ef4444' : '#10b981'}
       />
 
-      {/* Rüzgar */}
+      {/* Wind */}
       <SliderField
         label={`${tr.weather.wind}: ${weather.wind_speed} km/s`}
         min={0}
@@ -85,7 +85,7 @@ export default function WeatherPanel() {
         color={weather.wind_speed > 80 ? '#ef4444' : weather.wind_speed > 40 ? '#f59e0b' : '#10b981'}
       />
 
-      {/* Görüş Mesafesi */}
+      {/* Visibility */}
       <SliderField
         label={`${tr.weather.visibility}: ${weather.visibility} m`}
         min={0}
@@ -95,7 +95,7 @@ export default function WeatherPanel() {
         color={weather.visibility < 100 ? '#ef4444' : weather.visibility < 300 ? '#f59e0b' : '#10b981'}
       />
 
-      {/* Zemin */}
+      {/* Ground */}
       <div>
         <label className="text-xs text-slate-400 mb-1 block">{tr.weather.ground}</label>
         <select
@@ -109,7 +109,7 @@ export default function WeatherPanel() {
         </select>
       </div>
 
-      {/* Optimize Butonu */}
+      {/* Optimize Button */}
       <button
         onClick={handleOptimize}
         disabled={loading}
@@ -120,7 +120,7 @@ export default function WeatherPanel() {
 
       {error && <p className="text-xs text-husim-danger">{error}</p>}
 
-      {/* Optimizasyon Sonucu */}
+      {/* Optimization Result */}
       {optimizedParams && (
         <div className="border border-slate-600 rounded p-2 space-y-2 text-xs">
           <div className="flex items-center justify-between">
@@ -154,7 +154,7 @@ export default function WeatherPanel() {
             <p className="text-slate-400 text-xs italic">{optimizedParams.optimization_notes}</p>
           )}
 
-          {/* Dataset rozeti */}
+          {/* Dataset badge */}
           <div style={{
             background: '#1a3a1a',
             border: '1px solid #22c55e',

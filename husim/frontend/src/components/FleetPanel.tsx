@@ -52,7 +52,7 @@ export default function FleetPanel() {
     return currentFrame.vehicles.find((v: any) => v.vehicle_type === 'StaticObstacle') ?? null
   }, [currentFrame])
 
-  // Filo özet — interventions: şu anda bekleyen veya yavaşlayan araç sayısı
+  // Fleet summary — interventions: number of vehicles currently waiting or slowing
   const summary = useMemo(() => {
     const active = vehicles.filter((v: any) => v.status === 'moving' || v.status === 'approaching' || v.status === 'bypassing').length
     const waiting = vehicles.filter((v: any) => v.status === 'waiting' || v.status === 'slowing').length
@@ -60,7 +60,7 @@ export default function FleetPanel() {
     return { active, waiting, interventions }
   }, [vehicles])
 
-  // Fleet verisi var mı? (sadece status alanı olan araçlar için göster)
+  // Is fleet data available? (show only for vehicles that have a status field)
   const hasFleetData = vehicles.some((v: any) => v.status !== undefined)
 
   return (
@@ -73,7 +73,7 @@ export default function FleetPanel() {
         <div className="text-slate-500 text-center py-2">{tr.fleet.noFleetData}</div>
       ) : (
         <>
-          {/* Özet satırı */}
+          {/* Summary row */}
           <div className="flex gap-2 text-[10px] text-slate-400 border-b border-slate-700 pb-1.5">
             <span>
               <span className="text-emerald-400 font-bold">{summary.active}</span>{' '}
@@ -91,7 +91,7 @@ export default function FleetPanel() {
             </span>
           </div>
 
-          {/* Araç tablosu */}
+          {/* Vehicle table */}
           <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
             {vehicles.map((v: any) => {
               const isEgo = v.id === 'ego'
@@ -109,7 +109,7 @@ export default function FleetPanel() {
                       : 'border-slate-700/60 bg-slate-800/30'
                   }`}
                 >
-                  {/* Durum noktası */}
+                  {/* Status dot */}
                   <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
 
                   {/* ID */}
@@ -120,12 +120,12 @@ export default function FleetPanel() {
                   {/* Durum */}
                   <span className={`flex-1 ${txtClass}`}>{statusLabel(statusKey)}</span>
 
-                  {/* Hız */}
+                  {/* Speed */}
                   <span className="text-slate-400 w-12 text-right tabular-nums">
                     {(v.speed ?? 0).toFixed(1)}m/s
                   </span>
 
-                  {/* Öncelik */}
+                  {/* Priority */}
                   {v.priority !== undefined && (
                     <span className={`w-10 text-right shrink-0 ${priColor}`}>
                       {priorityLabel(v.priority)}
@@ -136,7 +136,7 @@ export default function FleetPanel() {
             })}
           </div>
 
-          {/* Engel uyarısı */}
+          {/* Obstacle warning */}
           {obstacle && (
             <div className="flex items-center gap-1.5 text-[10px] text-red-400 border border-red-800/40 rounded px-2 py-1 bg-red-900/10 mt-0.5">
               <span>⚠</span>

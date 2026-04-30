@@ -1,4 +1,4 @@
-"""HÜsim — FastAPI ana uygulama (Faza D)"""
+"""HÜsim — FastAPI main application (Phase D)"""
 import uuid
 import json
 import math
@@ -22,7 +22,7 @@ try:
     _DATASET_MODULES_OK = True
 except Exception as _de:
     _DATASET_MODULES_OK = False
-    logging.getLogger("husim.bootstrap").warning(f"Dataset modülleri yüklenemedi: {_de}")
+    logging.getLogger("husim.bootstrap").warning(f"Dataset modules could not be loaded: {_de}")
 from load_system import LoadSystem
 from event_zones import EventZoneManager, EVENT_TYPES
 from models import (
@@ -32,7 +32,7 @@ from models import (
 
 _load_system = LoadSystem()
 _event_manager = EventZoneManager()
-_engine_histories: dict[str, list[float]] = {}  # vehicle_id → sıcaklık geçmişi
+_engine_histories: dict[str, list[float]] = {}  # vehicle_id → temperature history
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,9 +40,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("husim")
 
-# Aktif simülasyonları bellekte tut
+# Keep active simulations in memory
 active_simulations: dict[str, dict] = {}
-# WebSocket bağlantıları: simulation_id → [WebSocket]
+# WebSocket connections: simulation_id → [WebSocket]
 ws_connections: dict[str, list[WebSocket]] = {}
 
 
@@ -77,7 +77,7 @@ app.add_middleware(
 )
 
 
-# ─── Sistem Durumu ────────────────────────────────────────────────────────────
+# ─── System Status ────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 async def health():
@@ -89,19 +89,19 @@ async def health():
     }
 
 
-# ─── Senaryolar ───────────────────────────────────────────────────────────────
+# ─── Scenarios ────────────────────────────────────────────────────────────────
 
 @app.get("/api/scenarios")
 async def get_scenarios():
-    """Kullanılabilir senaryoları listele (gerçek + demo + üretilmiş)."""
+    """List available scenarios (real + demo + generated)."""
     scenarios = scenario_loader.find_all_scenarios()
     return {"senaryolar": scenarios, "toplam": len(scenarios)}
 
 
 @app.get("/api/scenarios/{scenario_id}/frames")
 async def get_scenario_frames(scenario_id: str):
-    """Senaryo frame verilerini getir (tüm animasyon verisi)."""
-    # Senaryo yolunu bul
+    """Retrieve scenario frame data (full animation data)."""
+    # Find the scenario path
     all_scenarios = scenario_loader.find_all_scenarios()
     meta = next((s for s in all_scenarios if s["id"] == scenario_id), None)
     path = meta["path"] if meta else None
@@ -111,7 +111,7 @@ async def get_scenario_frames(scenario_id: str):
 
 @app.post("/api/scenarios/generate")
 async def generate_scenario(payload: dict):
-    """Yeni senaryo üret."""
+    """Generate a new scenario."""
     generator = sg.ScenarioGenerator()
     result = generator.generate(
         intersection_type=payload.get("intersection_type", "T"),
@@ -121,7 +121,7 @@ async def generate_scenario(payload: dict):
         weather_params=payload.get("weather_params", {}),
         name=payload.get("name", ""),
     )
-    # Frame'leri döndürmeden sadece metadata döndür
+    # Return only metadata without frames
     result_meta = {k: v for k, v in result.items() if k != "frames"}
     result_meta["frame_count"] = result.get("total_frames", 200)
     return {"basarili": True, "senaryo": result_meta}
@@ -129,7 +129,7 @@ async def generate_scenario(payload: dict):
 
 @app.post("/api/scenarios/compare")
 async def compare_scenarios(payload: dict):
-    """İki senaryoyu karşılaştır (normal vs optimize edilmiş)."""
+    """Compare two scenarios (normal vs optimized)."""
     scenario_id = payload.get("scenario_id", "")
     weather_params = payload.get("weather_params", {})
 
@@ -137,19 +137,19 @@ async def compare_scenarios(payload: dict):
     meta = next((s for s in all_scenarios if s["id"] == scenario_id), None)
     path = meta["path"] if meta else None
 
-    # Normal versiyon
+    # Normal version
     normal_data = scenario_loader.load_scenario_frames(scenario_id, path)
 
-    # Optimize edilmiş versiyon: hız düşürüldü, güvenlik arttırıldı
+    # Optimized version: speed reduced, safety increased
     speed_factor = weather_params.get("max_speed_factor", 0.7)
     opt_data = scenario_loader.load_scenario_frames(scenario_id, path)
 
-    # Optimize versiyonda araç hızlarını düşür
+    # Reduce vehicle speeds in the optimized version
     for frame in opt_data.get("frames", []):
         for v in frame.get("vehicles", []):
             v["speed"] = round(v["speed"] * speed_factor, 2)
 
-    # Özet metrikler hesapla
+    # Calculate summary metrics
     def calc_metrics(frames):
         collisions = 0
         near_misses = 0
@@ -190,7 +190,7 @@ async def compare_scenarios(payload: dict):
 
 @app.post("/api/scenarios/run")
 async def run_scenario(request: ScenarioRunRequest, background_tasks: BackgroundTasks):
-    """Yeni simülasyon başlat."""
+    """Start a new simulation."""
     sim_id = str(uuid.uuid4())[:8]
 
     active_simulations[sim_id] = {
@@ -207,7 +207,7 @@ async def run_scenario(request: ScenarioRunRequest, background_tasks: Background
 
     await database.save_session(sim_id, request.scenario_id, request.algorithm or "SPPMM")
 
-    # Yük parametrelerini simülasyon state'ine kaydet
+    # Save load parameters to the simulation state
     active_simulations[sim_id]["load_percent"] = request.load_percent or 0.0
     active_simulations[sim_id]["grade_percent"] = request.grade_percent or 0.0
     active_simulations[sim_id]["vehicle_type"] = request.vehicle_type or "MineTruck_XG90G"
@@ -223,7 +223,7 @@ async def run_scenario(request: ScenarioRunRequest, background_tasks: Background
         request.vehicle_type or "MineTruck_XG90G",
     )
 
-    logger.info(f"Simülasyon başlatıldı: {sim_id} / senaryo: {request.scenario_id}")
+    logger.info(f"Simulation started: {sim_id} / scenario: {request.scenario_id}")
     return {"simulasyon_id": sim_id, "durum": "başlatıldı"}
 
 
@@ -236,7 +236,7 @@ async def _run_simulation_task(
     grade_percent: float = 0.0,
     vehicle_type: str = "MineTruck_XG90G",
 ):
-    """Arka planda simülasyon çalıştır ve WebSocket'e veri aktar."""
+    """Run simulation in the background and stream data to WebSocket."""
     try:
         frame_list = []
 
@@ -247,7 +247,7 @@ async def _run_simulation_task(
             active_simulations[sim_id]["current_frame"] = frame_no
             active_simulations[sim_id]["progress"] = min(99, int(frame_no / max(total, 1) * 100))
 
-            # WebSocket'e gönder
+            # Send to WebSocket
             msg = json.dumps({"tip": "frame", "veri": frame_data}, ensure_ascii=False)
             dead = []
             for ws in ws_connections.get(sim_id, []):
@@ -258,7 +258,7 @@ async def _run_simulation_task(
             for ws in dead:
                 ws_connections[sim_id].remove(ws)
 
-        # Yük parametrelerine göre params'ı güncelle
+        # Update params according to load parameters
         load_params = _load_system.get_params(vehicle_type, load_percent, grade_percent)
         params.max_speed_factor = round(params.max_speed_factor * load_params["max_speed_ms"] / 15.3, 3)
 
@@ -273,7 +273,7 @@ async def _run_simulation_task(
         await database.update_session_status(sim_id, "completed")
         await database.save_result(sim_id, metrics.model_dump())
 
-        # Tamamlandı mesajı
+        # Completion message
         done_msg = json.dumps({"tip": "tamamlandi", "metrikler": metrics.model_dump()}, ensure_ascii=False)
         for ws in ws_connections.get(sim_id, []):
             try:
@@ -281,14 +281,14 @@ async def _run_simulation_task(
             except Exception:
                 pass
 
-        logger.info(f"Simülasyon tamamlandı: {sim_id}")
+        logger.info(f"Simulation completed: {sim_id}")
 
     except asyncio.CancelledError:
         active_simulations[sim_id]["status"] = "stopped"
         await database.update_session_status(sim_id, "stopped")
 
     except Exception as e:
-        logger.error(f"Simülasyon hatası ({sim_id}): {e}")
+        logger.error(f"Simulation error ({sim_id}): {e}")
         active_simulations[sim_id]["status"] = "failed"
         await database.update_session_status(sim_id, "failed")
 
@@ -302,7 +302,7 @@ async def _run_simulation_task(
 
 @app.get("/api/scenarios/{sim_id}/status")
 async def get_status(sim_id: str):
-    """Simülasyon durumunu sorgula."""
+    """Query simulation status."""
     sim = active_simulations.get(sim_id)
     if not sim:
         raise HTTPException(status_code=404, detail="Simülasyon bulunamadı")
@@ -319,7 +319,7 @@ async def get_status(sim_id: str):
 
 @app.get("/api/scenarios/{sim_id}/result")
 async def get_result(sim_id: str):
-    """Simülasyon sonuçlarını getir."""
+    """Retrieve simulation results."""
     sim = active_simulations.get(sim_id)
     if not sim:
         raise HTTPException(status_code=404, detail="Simülasyon bulunamadı")
@@ -337,7 +337,7 @@ async def get_result(sim_id: str):
 
 @app.post("/api/scenarios/{sim_id}/stop")
 async def stop_simulation(sim_id: str):
-    """Simülasyonu durdur."""
+    """Stop the simulation."""
     sim = active_simulations.get(sim_id)
     if not sim:
         raise HTTPException(status_code=404, detail="Simülasyon bulunamadı")
@@ -346,11 +346,11 @@ async def stop_simulation(sim_id: str):
     return {"mesaj": "Simülasyon durduruldu", "simulasyon_id": sim_id}
 
 
-# ─── Motor Durumu ─────────────────────────────────────────────────────────────
+# ─── Engine Status ────────────────────────────────────────────────────────────
 
 @app.get("/api/engine/status/{scenario_id}")
 async def engine_status(scenario_id: str):
-    """Tüm araçların anlık motor durumunu döndür."""
+    """Return the current engine status of all vehicles."""
     sim = next(
         (s for s in active_simulations.values() if s.get("scenario_id") == scenario_id),
         None,
@@ -362,16 +362,16 @@ async def engine_status(scenario_id: str):
 
 @app.get("/api/engine/history/{vehicle_id}")
 async def engine_history(vehicle_id: str):
-    """Araç motor sıcaklık geçmişi."""
+    """Vehicle engine temperature history."""
     history = _engine_histories.get(vehicle_id, [])
     return {"vehicle_id": vehicle_id, "history": history, "count": len(history)}
 
 
-# ─── Olay Bölgeleri ───────────────────────────────────────────────────────────
+# ─── Event Zones ──────────────────────────────────────────────────────────────
 
 @app.get("/api/events/active")
 async def get_active_events():
-    """Aktif olay bölgelerini listele."""
+    """List active event zones."""
     import time
     events = _event_manager.get_active_events(time.time())
     return {"events": events, "count": len(events)}
@@ -379,7 +379,7 @@ async def get_active_events():
 
 @app.post("/api/events/add")
 async def add_event(payload: dict):
-    """Yeni olay ekle."""
+    """Add a new event."""
     import time
     x = float(payload.get("x", 0))
     y = float(payload.get("y", 0))
@@ -389,7 +389,7 @@ async def add_event(payload: dict):
         ev = _event_manager.get_all_events()
         added = next((e for e in ev if e["id"] == eid), None)
 
-        # WebSocket üzerinden bildir
+        # Notify via WebSocket
         if added:
             msg = json.dumps({"tip": "olay_eklendi", "olay": added}, ensure_ascii=False)
             for conns in ws_connections.values():
@@ -406,7 +406,7 @@ async def add_event(payload: dict):
 
 @app.delete("/api/events/{event_id}")
 async def delete_event(event_id: str):
-    """Olayı kaldır."""
+    """Remove an event."""
     _event_manager.remove_event(event_id)
     msg = json.dumps({"tip": "olay_kaldirildi", "event_id": event_id}, ensure_ascii=False)
     for conns in ws_connections.values():
@@ -420,7 +420,7 @@ async def delete_event(event_id: str):
 
 @app.post("/api/events/random")
 async def random_events(payload: dict):
-    """Rastgele olay üret."""
+    """Generate random events."""
     import time
     count = int(payload.get("count", 3))
     x_min = float(payload.get("x_min", -50))
@@ -433,21 +433,21 @@ async def random_events(payload: dict):
 
 @app.get("/api/events/types")
 async def get_event_types():
-    """Kullanılabilir olay tiplerini döndür."""
+    """Return available event types."""
     return {"types": EVENT_TYPES}
 
 
-# ─── Yük Sistemi ─────────────────────────────────────────────────────────────
+# ─── Load System ──────────────────────────────────────────────────────────────
 
 @app.get("/api/load/presets")
 async def get_load_presets():
-    """Araç tipine göre yük preset listesi döndür."""
+    """Return load preset list by vehicle type."""
     return {"presets": _load_system.get_presets()}
 
 
 @app.post("/api/load/calculate")
 async def calculate_load(payload: dict):
-    """Yük ve eğim parametrelerini hesapla."""
+    """Calculate load and grade parameters."""
     vehicle_type = payload.get("vehicle_type", "MineTruck_XG90G")
     load_percent = float(payload.get("load_percent", 0))
     grade_percent = float(payload.get("grade_percent", 0))
@@ -455,11 +455,11 @@ async def calculate_load(payload: dict):
     return result
 
 
-# ─── Dataset Kalibrasyonu ────────────────────────────────────────────────────
+# ─── Dataset Calibration ─────────────────────────────────────────────────────
 
 @app.get("/api/dataset/calibration")
 async def get_dataset_calibration():
-    """Tüm hava koşulları için Levin Telematics kalibrasyon bilgisi döndür."""
+    """Return Levin Telematics calibration info for all weather conditions."""
     if not _DATASET_MODULES_OK:
         return {
             "data_source": "Levin Telematics Dataset — 15,847 gerçek araç ölçümü",
@@ -469,37 +469,37 @@ async def get_dataset_calibration():
     try:
         return dataset_calibration.get_calibration_summary()
     except Exception as e:
-        logger.error(f"Kalibrasyon özeti hatası: {e}")
+        logger.error(f"Calibration summary error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/dataset/vehicle-health")
 async def get_vehicle_health(vehicle_type: str = "MineTruck_XG90G", usage_hours: float = 1000.0):
-    """Araç sağlık profilini döndür."""
+    """Return vehicle health profile."""
     if not _DATASET_MODULES_OK:
         return {"health_score": 85.0, "brake_efficiency": 0.90, "warnings": [], "data_source": "varsayılan"}
     try:
         return _maintenance.get_vehicle_health_profile(vehicle_type, usage_hours)
     except Exception as e:
-        logger.error(f"Araç sağlık hatası: {e}")
+        logger.error(f"Vehicle health error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ─── Hava Durumu Optimizasyonu ───────────────────────────────────────────────
+# ─── Weather Optimization ────────────────────────────────────────────────────
 
 @app.post("/api/weather/optimize")
 async def optimize_weather(weather: WeatherInput):
-    """Hava koşullarına göre simülasyon parametrelerini optimize et."""
-    logger.info(f"Hava optimizasyonu: {weather.weather_type} / {weather.ground_type}")
+    """Optimize simulation parameters based on weather conditions."""
+    logger.info(f"Weather optimization: {weather.weather_type} / {weather.ground_type}")
     params = weather_optimizer.optimize(weather)
     return params
 
 
-# ─── Canlı Metrikler ──────────────────────────────────────────────────────────
+# ─── Live Metrics ─────────────────────────────────────────────────────────────
 
 @app.get("/api/metrics/live")
 async def live_metrics():
-    """Aktif simülasyonların anlık metriklerini döndür."""
+    """Return real-time metrics of active simulations."""
     live = {}
     for sim_id, sim in active_simulations.items():
         if sim["status"] == "running":
@@ -510,14 +510,14 @@ async def live_metrics():
     return {"aktif": live, "toplam_aktif": len(live)}
 
 
-# ─── Raporlama ────────────────────────────────────────────────────────────────
+# ─── Reporting ────────────────────────────────────────────────────────────────
 
 @app.post("/api/reports/generate")
 async def generate_report(request: ReportRequest):
-    """Rapor oluştur ve kaydet."""
+    """Generate and save a report."""
     sim = active_simulations.get(request.simulation_id)
     if not sim:
-        # Geçmişten dene
+        # Try from history
         history = await database.get_history(limit=200)
         sim_history = next((h for h in history if h["id"] == request.simulation_id), None)
         if not sim_history:
@@ -544,7 +544,7 @@ async def generate_report(request: ReportRequest):
 
 @app.get("/api/reports/{sim_id}/download")
 async def download_report(sim_id: str):
-    """PDF raporu indir."""
+    """Download the PDF report."""
     report_path = report_generator.REPORTS_DIR / f"rapor_{sim_id}.pdf"
     if not report_path.exists():
         raise HTTPException(status_code=404, detail="Rapor bulunamadı. Önce oluşturun.")
@@ -557,20 +557,20 @@ async def download_report(sim_id: str):
     )
 
 
-# ─── Geçmiş ───────────────────────────────────────────────────────────────────
+# ─── History ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/history")
 async def get_history():
-    """Geçmiş simülasyonları getir."""
+    """Retrieve past simulations."""
     history = await database.get_history(limit=100)
     return {"gecmis": history, "toplam": len(history)}
 
 
-# ─── Toplu Koşucu ─────────────────────────────────────────────────────────────
+# ─── Batch Runner ─────────────────────────────────────────────────────────────
 
 @app.post("/api/scenarios/batch")
 async def batch_run(request: BatchRunRequest, background_tasks: BackgroundTasks):
-    """Birden fazla senaryoyu sırayla çalıştır."""
+    """Run multiple scenarios sequentially."""
     batch_id = str(uuid.uuid4())[:8]
     sim_ids = []
 
@@ -607,10 +607,11 @@ async def _run_batch_task(sim_ids: list[str], params: OptimizedParams, algorithm
 
 # ─── WebSocket ────────────────────────────────────────────────────────────────
 
+
 @app.websocket("/ws/simulation/{sim_id}")
 async def websocket_simulation(websocket: WebSocket, sim_id: str):
     await websocket.accept()
-    logger.info(f"WebSocket bağlandı: {sim_id}")
+    logger.info(f"WebSocket connected: {sim_id}")
 
     if sim_id not in ws_connections:
         ws_connections[sim_id] = []
@@ -618,18 +619,18 @@ async def websocket_simulation(websocket: WebSocket, sim_id: str):
 
     try:
         while True:
-            # Bağlantıyı canlı tut (ping)
+            # Keep connection alive (ping)
             try:
                 msg = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
                 if msg == "ping":
                     await websocket.send_text(json.dumps({"tip": "pong"}))
             except asyncio.TimeoutError:
-                # Timeout — bağlantı kontrolü
+                # Timeout — check connection
                 sim = active_simulations.get(sim_id)
                 if sim and sim["status"] in ("completed", "failed", "stopped"):
                     break
     except WebSocketDisconnect:
-        logger.info(f"WebSocket bağlantısı kesildi: {sim_id}")
+        logger.info(f"WebSocket disconnected: {sim_id}")
     finally:
         if sim_id in ws_connections and websocket in ws_connections[sim_id]:
             ws_connections[sim_id].remove(websocket)

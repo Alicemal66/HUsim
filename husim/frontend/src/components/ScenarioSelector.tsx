@@ -61,7 +61,7 @@ export default function ScenarioSelector() {
     return true
   })
 
-  // Senaryo seçilince frame'leri önceden yükle
+  // Preload frames when a scenario is selected
   useEffect(() => {
     if (!selectedScenario) {
       clearFrames()
@@ -169,7 +169,7 @@ export default function ScenarioSelector() {
         {tr.scenario.title}
       </h2>
 
-      {/* Filtre butonları */}
+      {/* Filter buttons */}
       <div className="flex gap-1 flex-wrap">
         {filterButtons.map(({ key, label }) => (
           <button
@@ -197,7 +197,7 @@ export default function ScenarioSelector() {
         ))}
       </div>
 
-      {/* Kart listesi */}
+      {/* Card list */}
       <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-0.5 pt-0.5 pb-1">
         {scenarios.length === 0 && (
           <div className="text-xs text-slate-500 text-center py-3">
@@ -237,12 +237,12 @@ export default function ScenarioSelector() {
         })}
       </div>
 
-      {/* Yükleme göstergesi */}
+      {/* Loading indicator */}
       {preloading && (
         <div className="text-xs text-blue-400 animate-pulse">{tr.scenarioFilter.previewLoading}</div>
       )}
 
-      {/* Hava optimizasyonu uyarısı */}
+      {/* Weather optimization warning */}
       {!optimizedParams && (
         <p className="text-xs text-yellow-400">⚠️ Önce hava koşullarını optimize edin.</p>
       )}
@@ -274,7 +274,7 @@ export default function ScenarioSelector() {
       )}
       {error && <p className="text-xs text-husim-danger">{error}</p>}
 
-      {/* Çalıştır / Durdur */}
+      {/* Run / Stop */}
       <div className="flex gap-2">
         <button
           onClick={handleRun}

@@ -1,0 +1,49 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.env.*
+
+# Node
+node_modules/
+dist/
+.next/
+.nuxt/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Datasets and large files
+datasets/
+*.xlsx
+*.xls
+*.csv
+*.parquet
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# Reports (generated)
+husim/backend/reports/*.pdf

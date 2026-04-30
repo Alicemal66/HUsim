@@ -1,4 +1,4 @@
-"""PDF rapor üretici — ReportLab kullanır"""
+"""PDF report generator — uses ReportLab"""
 import io
 import json
 import logging
@@ -20,7 +20,7 @@ try:
     REPORTLAB_OK = True
 except ImportError:
     REPORTLAB_OK = False
-    logger.warning("ReportLab kurulu değil — PDF üretimi devre dışı.")
+    logger.warning("ReportLab not installed — PDF generation disabled.")
 
 
 REPORTS_DIR = Path(__file__).parent / "reports"
@@ -35,7 +35,7 @@ def generate_pdf(
     include_metrics: bool = True,
     include_weather: bool = True,
 ) -> bytes:
-    """Simülasyon sonuçlarından PDF rapor üret."""
+    """Generate a PDF report from simulation results."""
     if not REPORTLAB_OK:
         return _generate_text_report(simulation_id, scenario_id, metrics, weather)
 
@@ -74,7 +74,7 @@ def generate_pdf(
 
     story = []
 
-    # Başlık
+    # Title
     story.append(Paragraph("HÜsim — Simülasyon Raporu", title_style))
     story.append(Paragraph(f"Simülasyon Kimliği: {simulation_id}", body_style))
     story.append(Paragraph(f"Senaryo: {scenario_id}", body_style))
@@ -82,7 +82,7 @@ def generate_pdf(
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#1a3a5c")))
     story.append(Spacer(1, 12))
 
-    # Hava koşulları
+    # Weather conditions
     if include_weather and weather:
         story.append(Paragraph("Hava Koşulları", heading_style))
         weather_data = [
@@ -96,11 +96,11 @@ def generate_pdf(
         story.append(_make_table(weather_data))
         story.append(Spacer(1, 8))
 
-    # Metrikler
+    # Metrics
     if include_metrics and metrics:
         story.append(Paragraph("Simülasyon Metrikleri", heading_style))
 
-        # Güvenlik
+        # Safety
         story.append(Paragraph("Güvenlik", ParagraphStyle("sub", parent=body_style, fontSize=11, textColor=colors.HexColor("#ef4444"))))
         safety_data = [
             ["Metrik", "Değer"],
@@ -112,7 +112,7 @@ def generate_pdf(
         story.append(_make_table(safety_data))
         story.append(Spacer(1, 8))
 
-        # Verimlilik
+        # Efficiency
         story.append(Paragraph("Verimlilik", ParagraphStyle("sub2", parent=body_style, fontSize=11, textColor=colors.HexColor("#10b981"))))
         efficiency_data = [
             ["Metrik", "Değer"],
@@ -123,7 +123,7 @@ def generate_pdf(
         story.append(_make_table(efficiency_data))
         story.append(Spacer(1, 8))
 
-        # Görev tamamlama
+        # Task completion
         completed = metrics.get("task_completed", False)
         story.append(Paragraph(
             f"Görev Durumu: {'✓ TAMAMLANDI' if completed else '✗ BAŞARISIZ'}",
@@ -141,16 +141,16 @@ def generate_pdf(
     pdf_bytes = buffer.getvalue()
     buffer.close()
 
-    # Diske kaydet
+    # Save to disk
     output_file = REPORTS_DIR / f"rapor_{simulation_id}.pdf"
     output_file.write_bytes(pdf_bytes)
-    logger.info(f"PDF rapor oluşturuldu: {output_file}")
+    logger.info(f"PDF report generated: {output_file}")
 
     return pdf_bytes
 
 
 def _make_table(data: list[list]) -> Table:
-    """Şık bir tablo oluştur."""
+    """Create a styled table."""
     table = Table(data, colWidths=[8 * cm, 8 * cm])
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a3a5c")),
@@ -175,7 +175,7 @@ def _tr_ground(key: str) -> str:
 
 
 def _generate_text_report(simulation_id, scenario_id, metrics, weather) -> bytes:
-    """ReportLab yoksa basit metin raporu döndür."""
+    """Return a simple text report if ReportLab is not available."""
     lines = [
         "HÜsim - Simülasyon Raporu",
         "=" * 40,

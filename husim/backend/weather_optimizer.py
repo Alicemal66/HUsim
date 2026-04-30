@@ -1,4 +1,4 @@
-"""Hava durumu optimizasyon motoru — WeatherInput → OptimizedParams dönüşümü"""
+"""Weather optimization engine — WeatherInput → OptimizedParams conversion"""
 from models import WeatherInput, OptimizedParams, WeatherType, GroundType
 try:
     from dataset_calibration import CALIBRATED_PARAMS, get_calibration_summary as _get_cal
@@ -9,8 +9,8 @@ except Exception:
 
 
 def optimize(weather: WeatherInput) -> OptimizedParams:
-    """Hava koşullarına göre simülasyon parametrelerini hesapla."""
-    # Temel değerler
+    """Calculate simulation parameters based on weather conditions."""
+    # Base values
     speed_factor = 1.0
     friction = 0.7
     braking_factor = 1.0
@@ -20,7 +20,7 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
     warnings = []
     notes_parts = []
 
-    # --- Zemin koşullarına göre temel ayar ---
+    # --- Base adjustment based on ground conditions ---
     if weather.ground_type == GroundType.wet:
         friction = 0.55
         braking_factor *= 1.3
@@ -48,7 +48,7 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
         warnings.append("🧊 BUZLU ZEMİN — KRİTİK TEHLİKE! Hız minimuma çekildi.")
         notes_parts.append("Buzlu zemin: maksimum güvenlik modu aktif.")
 
-    # --- Hava tipine göre ek çarpanlar ---
+    # --- Additional multipliers based on weather type ---
     if weather.weather_type == WeatherType.rainy and weather.ground_type == GroundType.wet:
         speed_factor *= 0.7
         braking_factor *= 1.8
@@ -85,16 +85,16 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
         notes_parts.append("Yağmurlu hava: hafif hız azaltması uygulandı.")
 
     elif weather.weather_type == WeatherType.cloudy:
-        # Minimal etki
+        # Minimal effect
         notes_parts.append("Bulutlu hava: normal koşullar.")
 
-    # --- Rüzgar hızına bağımsız kontrol ---
+    # --- Independent wind speed check ---
     if weather.wind_speed > 80 and weather.weather_type != WeatherType.stormy:
         speed_factor *= 0.85
         safety_margin *= 1.3
         warnings.append("Yüksek rüzgar hızı — güvenlik marjı artırıldı.")
 
-    # --- Sıcaklık etkileri ---
+    # --- Temperature effects ---
     if weather.temperature < -10:
         braking_factor *= 1.3
         warnings.append(f"Düşük sıcaklık ({weather.temperature}°C) — motor performansı düşmüş, fren mesafesi artırıldı.")
@@ -104,10 +104,10 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
         warnings.append(f"⚠️ Yüksek sıcaklık ({weather.temperature}°C) — motor aşırı ısınma riski!")
         notes_parts.append("Aşırı sıcaklık: motor ısınma uyarısı eklendi.")
 
-    # Agent araç hızı ego hızıyla orantılı
+    # Agent vehicle speed proportional to ego speed
     agent_speed = speed_factor * 0.95
 
-    # Değerleri sınırla
+    # Clamp values
     speed_factor = max(0.3, min(1.0, speed_factor))
     friction = max(0.2, min(0.8, friction))
     braking_factor = max(1.0, min(3.5, braking_factor))
@@ -115,11 +115,11 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
     agent_speed = max(0.3, min(1.0, agent_speed))
     visibility_range = max(0.0, min(1000.0, visibility_range))
 
-    # Risk seviyesi hesapla
+    # Calculate risk level
     risk_score = _calculate_risk(speed_factor, braking_factor, safety_margin, weather)
     risk_level = _get_risk_level(risk_score)
 
-    # Algoritma önerisi
+    # Algorithm recommendation
     if risk_level == "kritik":
         recommended_algorithm = "emergency_stop"
     elif risk_level == "yüksek":
@@ -130,7 +130,7 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
     if not notes_parts:
         notes_parts.append("Normal hava koşulları — standart parametreler kullanılıyor.")
 
-    # Motor ısınma çarpanı hesapla
+    # Calculate engine heat factor
     if weather.temperature > 35:
         engine_heat_factor = 1.3
     elif weather.temperature < -10:
@@ -140,7 +140,7 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
     else:
         engine_heat_factor = 1.0
 
-    # Dataset kalibrasyon kaynağını belirle
+    # Determine dataset calibration source
     cal_source = CALIBRATED_PARAMS.get(weather.weather_type.value, {}).get(
         "source", "Levin Telematics Dataset — 15,847 gerçek araç ölçümü"
     )
@@ -169,12 +169,12 @@ def optimize(weather: WeatherInput) -> OptimizedParams:
 
 
 def _calculate_risk(speed_factor: float, braking: float, safety: float, weather: WeatherInput) -> float:
-    """0-100 arası risk skoru hesapla."""
-    # Düşük hız faktörü = yüksek risk
+    """Calculate risk score from 0 to 100."""
+    # Low speed factor = high risk
     speed_risk = (1.0 - speed_factor) * 40
-    # Yüksek fren faktörü = yüksek risk
+    # High braking factor = high risk
     braking_risk = ((braking - 1.0) / 2.5) * 30
-    # Düşük görüş = yüksek risk
+    # Low visibility = high risk
     visibility_risk = max(0, (1 - weather.visibility / 1000)) * 30
 
     return min(100, speed_risk + braking_risk + visibility_risk)

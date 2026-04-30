@@ -198,7 +198,7 @@ export default function Scenarios() {
         </table>
       </div>
 
-      {/* Seçim özeti */}
+      {/* Selection summary */}
       <div className="text-xs text-slate-400">
         {selected.size > 0
           ? `${selected.size} senaryo seçildi`

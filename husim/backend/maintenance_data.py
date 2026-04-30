@@ -1,6 +1,6 @@
 """
-Vehicle Maintenance Telemetry dataset'inden araç sağlık metrikleri çıkar.
-Dataset mevcut değilse varsayılan araç yaşlanma modeli kullanılır.
+Extract vehicle health metrics from the Vehicle Maintenance Telemetry dataset.
+If the dataset is not available, a default vehicle aging model is used.
 """
 import logging
 from pathlib import Path
@@ -28,10 +28,10 @@ def _load_dataset() -> None:
         import pandas as pd
         path = _find_dataset()
         if not path:
-            logger.warning("Maintenance telemetry dataset bulunamadı.")
+            logger.warning("Maintenance telemetry dataset not found.")
             return
 
-        logger.info(f"Maintenance telemetry yükleniyor: {path}")
+        logger.info(f"Loading maintenance telemetry: {path}")
         df = pd.read_csv(path, nrows=5000, low_memory=False)
         columns = list(df.columns)
 
@@ -46,10 +46,10 @@ def _load_dataset() -> None:
             "avg_rpm": float(df[rpm_col].dropna().mean()) if rpm_col else 2000.0,
             "avg_load": float(df[load_col].dropna().mean()) if load_col else 50.0,
         }
-        logger.info(f"Maintenance telemetry yüklendi: {len(df)} satır")
+        logger.info(f"Maintenance telemetry loaded: {len(df)} rows")
 
     except Exception as e:
-        logger.error(f"Maintenance telemetry yükleme hatası: {e}")
+        logger.error(f"Maintenance telemetry loading error: {e}")
         _dataset_stats = {"loaded": False}
 
 
@@ -61,14 +61,14 @@ except Exception:
 
 def get_vehicle_health_profile(vehicle_type: str, usage_hours: float) -> dict:
     """
-    Kullanım saatine göre araç sağlık profili döndür.
-    Dataset varsa gerçek arıza istatistiklerini kullan.
+    Return vehicle health profile based on usage hours.
+    Use real failure statistics if dataset is available.
 
-    Döndür: health_score, brake_efficiency, engine_reliability,
+    Returns: health_score, brake_efficiency, engine_reliability,
              maintenance_due, warnings, data_source
     """
     try:
-        # Araç yaşlanma modeli: kullanım saatine göre performans düşüşü
+        # Vehicle aging model: performance degradation based on usage hours
         if usage_hours < 500:
             health_score = 95.0
             brake_efficiency = 0.98
@@ -122,7 +122,7 @@ def get_vehicle_health_profile(vehicle_type: str, usage_hours: float) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Araç sağlık profili hatası: {e}")
+        logger.error(f"Vehicle health profile error: {e}")
         return {
             "health_score": 80.0,
             "brake_efficiency": 0.90,

@@ -1,4 +1,4 @@
-"""HÜsim — Motor sıcaklığı modeli (Faza F)"""
+"""HÜsim — Engine temperature model (Phase F)"""
 
 
 class EngineModel:
@@ -20,7 +20,7 @@ class EngineModel:
         dt: float = 0.1,
     ) -> dict:
         is_moving = current_speed > 0.3
-        # 0.5 (boş araç) → 1.0 (tam yüklü)
+        # 0.5 (empty vehicle) → 1.0 (fully loaded)
         load_factor = 0.5 + (load_percent / 100.0) * 0.5
 
         if is_moving:

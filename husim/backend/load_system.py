@@ -1,4 +1,4 @@
-"""HÜsim — Yük ve eğim parametreleri hesaplama modülü (Faza E)"""
+"""HÜsim — Load and grade parameter calculation module (Phase E)"""
 
 
 class LoadSystem:
@@ -27,9 +27,9 @@ class LoadSystem:
 
     def get_params(self, vehicle_type: str, load_percent: float, grade_percent: float = 0.0) -> dict:
         """
-        Yük yüzdesi (0-100) ve eğim yüzdesi (-15..+15) alır.
-        Döndürür: max_speed_ms, max_accel, brake_distance_m,
-                  fuel_consumption_factor, load_ton, total_weight_ton
+        Takes load percentage (0-100) and grade percentage (-15..+15).
+        Returns: max_speed_ms, max_accel, brake_distance_m,
+                 fuel_consumption_factor, load_ton, total_weight_ton
         """
         load_percent = max(0.0, min(100.0, load_percent))
         grade_percent = max(-15.0, min(15.0, grade_percent))
@@ -37,20 +37,20 @@ class LoadSystem:
         spec = self.VEHICLE_SPECS.get(vehicle_type, self.VEHICLE_SPECS["MineTruck_XG90G"])
         t = load_percent / 100.0
 
-        # Lineer interpolasyon (boş → tam yüklü)
+        # Linear interpolation (empty → fully loaded)
         base_speed = spec["empty_max_speed_ms"] + t * (spec["loaded_max_speed_ms"] - spec["empty_max_speed_ms"])
         base_accel = spec["empty_max_accel"] + t * (spec["loaded_max_accel"] - spec["empty_max_accel"])
         base_brake = spec["empty_brake_dist_m"] + t * (spec["loaded_brake_dist_m"] - spec["empty_brake_dist_m"])
 
-        # Eğim etkisi
+        # Grade effect
         g = abs(grade_percent)
         if grade_percent > 0:
-            # Yokuş yukarı: hız -3%/derece, ivme -5%/derece
+            # Uphill: speed -3%/degree, acceleration -5%/degree
             speed_factor = max(0.3, 1.0 - g * 0.03)
             accel_factor = max(0.2, 1.0 - g * 0.05)
             brake_factor = 1.0
         else:
-            # Yokuş aşağı: hız +2%/derece (max aşamaz), fren +8%/derece
+            # Downhill: speed +2%/degree (cannot exceed max), braking +8%/degree
             speed_factor = min(1.0 + g * 0.02, spec["empty_max_speed_ms"] / max(base_speed, 0.1))
             accel_factor = 1.0
             brake_factor = 1.0 + g * 0.08
@@ -62,7 +62,7 @@ class LoadSystem:
         load_ton = round(spec["max_payload_ton"] * t, 1)
         total_weight_ton = round(spec["empty_weight_ton"] + load_ton, 1)
 
-        # Yakıt tüketim çarpanı: ağırlık + eğim
+        # Fuel consumption factor: weight + grade
         fuel_base = 1.0 + t * 1.8
         fuel_grade = 1.0 + max(grade_percent, 0) * 0.06
         fuel_consumption_factor = round(fuel_base * fuel_grade, 3)

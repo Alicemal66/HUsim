@@ -99,7 +99,7 @@ function EngineTempBar({ temp, vehicleId }: { temp: number; vehicleId: string })
 export default function MetricsPanel() {
   const { simMetrics, frames, simStatus } = useStore()
 
-  // Canlı hız grafiği verisi (son 40 frame)
+  // Live speed chart data (last 40 frames)
   const speedData = frames
     .slice(-40)
     .map((f) => {
@@ -107,7 +107,7 @@ export default function MetricsPanel() {
       return { t: f.time, speed: ego?.speed ?? 0 }
     })
 
-  // Motor sıcaklık grafiği (EGO, son 40 frame)
+  // Engine temperature chart (EGO, last 40 frames)
   const engineTempData = frames
     .slice(-40)
     .map((f) => {
@@ -115,7 +115,7 @@ export default function MetricsPanel() {
       return { t: f.time, temp: (ego as any)?.engine_temp ?? 80 }
     })
 
-  // Güncel araç motor durumları (son frame)
+  // Current vehicle engine states (last frame)
   const lastFrame = frames[frames.length - 1]
   const vehicleEngineStates = lastFrame?.vehicles
     .filter((v) => (v as any).engine_temp != null)
@@ -152,7 +152,7 @@ export default function MetricsPanel() {
         <RiskGauge score={m?.risk_score ?? 0} />
       </div>
 
-      {/* Hız Grafiği */}
+      {/* Speed Chart */}
       {speedData.length > 2 && (
         <div>
           <p className="text-xs text-slate-400 mb-1">Anlık Hız (m/s)</p>
@@ -169,7 +169,7 @@ export default function MetricsPanel() {
         </div>
       )}
 
-      {/* Motor Durumu */}
+      {/* Engine Status */}
       {vehicleEngineStates.length > 0 && (
         <div className="bg-slate-800/60 rounded p-2">
           <h4 className="text-xs font-bold mb-1.5 uppercase tracking-wider text-orange-400">
@@ -198,7 +198,7 @@ export default function MetricsPanel() {
         </div>
       )}
 
-      {/* Metrik Kartları */}
+      {/* Metric Cards */}
       <MetricCard
         title={tr.metrics.safety}
         accentColor="#ef4444"
@@ -250,7 +250,7 @@ export default function MetricsPanel() {
         ]}
       />
 
-      {/* Görev Durumu */}
+      {/* Task Status */}
       {simMetrics ? (
         <div className={`rounded p-2 text-center text-sm font-bold ${
           m.task_completed

@@ -17,13 +17,13 @@ export default function EventControlPanel() {
     eventPlacingType, setEventPlacingType,
   } = useStore()
 
-  // Aktif olayları periyodik olarak çek
+  // Periodically fetch active events
   useEffect(() => {
     const load = async () => {
       try {
         const data = await fetchActiveEvents()
         setActiveEvents(data.events ?? [])
-      } catch { /* backend yoksa sessiz geç */ }
+      } catch { /* silent if backend is unavailable */ }
     }
     load()
     const id = setInterval(load, 3000)
@@ -62,7 +62,7 @@ export default function EventControlPanel() {
         </span>
       </div>
 
-      {/* Hızlı ekle butonları */}
+      {/* Quick add buttons */}
       <div>
         <p className="text-[10px] text-slate-500 mb-1">{tr.eventZones.quickAdd}:</p>
         <div className="flex gap-1 flex-wrap">

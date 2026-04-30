@@ -1,4 +1,4 @@
-"""SQLite veritabanı — oturum ve sonuç kaydı"""
+"""SQLite database — session and result storage"""
 import json
 import logging
 from datetime import datetime
@@ -36,7 +36,7 @@ class Result(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     session_id: Mapped[str] = mapped_column(String)
-    metrics_json: Mapped[str] = mapped_column(Text)  # JSON olarak kaydedilir
+    metrics_json: Mapped[str] = mapped_column(Text)  # Stored as JSON
     task_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     completion_time: Mapped[float] = mapped_column(Float, default=0.0)
     risk_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -59,15 +59,15 @@ class Alert(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     session_id: Mapped[str] = mapped_column(String)
     message: Mapped[str] = mapped_column(Text)
-    level: Mapped[str] = mapped_column(String, default="bilgi")  # bilgi | uyarı | kritik
+    level: Mapped[str] = mapped_column(String, default="bilgi")  # bilgi | uyarı | kritik (info | warning | critical)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 async def init_db():
-    """Veritabanı tablolarını oluştur."""
+    """Create database tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("Veritabanı başlatıldı.")
+    logger.info("Database initialized.")
 
 
 async def save_session(simulation_id: str, scenario_id: str, algorithm: str):
@@ -118,11 +118,11 @@ async def get_history(limit: int = 50) -> list[dict]:
 
         history = []
         for s in sessions:
-            # Metrikleri al
+            # Get metrics
             res_stmt = select(Result).where(Result.session_id == s.id).limit(1)
             res = (await db.execute(res_stmt)).scalar_one_or_none()
 
-            # Hava konfigürasyonunu al
+            # Get weather configuration
             wc_stmt = select(WeatherConfig).where(WeatherConfig.session_id == s.id).limit(1)
             wc = (await db.execute(wc_stmt)).scalar_one_or_none()
 

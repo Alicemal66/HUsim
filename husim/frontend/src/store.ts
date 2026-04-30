@@ -81,15 +81,15 @@ export interface Alert {
 }
 
 interface HusimStore {
-  // Hava durumu
+  // Weather
   weather: WeatherInput
   setWeather: (w: Partial<WeatherInput>) => void
 
-  // Optimizasyon sonucu
+  // Optimization result
   optimizedParams: OptimizedParams | null
   setOptimizedParams: (p: OptimizedParams | null) => void
 
-  // Aktif simülasyon
+  // Active simulation
   activeSimId: string | null
   setActiveSimId: (id: string | null) => void
   simStatus: string
@@ -99,14 +99,14 @@ interface HusimStore {
   simMetrics: SimMetrics | null
   setSimMetrics: (m: SimMetrics | null) => void
 
-  // Canlı frame'ler
+  // Live frames
   frames: SimFrame[]
   addFrame: (f: SimFrame) => void
   clearFrames: () => void
   currentFrameIdx: number
   setCurrentFrameIdx: (i: number) => void
 
-  // Uyarılar
+  // Alerts
   alerts: Alert[]
   addAlert: (a: Omit<Alert, 'id' | 'timestamp'>) => void
   removeAlert: (id: string) => void
@@ -114,42 +114,42 @@ interface HusimStore {
   alertThreshold: number
   setAlertThreshold: (t: number) => void
 
-  // Backend bağlantısı
+  // Backend connection
   backendConnected: boolean
   setBackendConnected: (v: boolean) => void
 
-  // Seçili senaryo
+  // Selected scenario
   selectedScenario: string | null
   setSelectedScenario: (id: string | null) => void
 
-  // Aktif sayfa
+  // Active page
   activePage: 'dashboard' | 'scenarios' | 'history'
   setActivePage: (p: 'dashboard' | 'scenarios' | 'history') => void
 
-  // Yol geometrisi (seçili senaryo için)
+  // Road geometry (for the selected scenario)
   roadGeometry: any | null
   setRoadGeometry: (g: any | null) => void
 
-  // Tüm frame'leri toplu set etme (preload için)
+  // Bulk-set all frames (for preloading)
   setFrames: (f: SimFrame[]) => void
 
-  // Yük ve eğim parametreleri
+  // Load and grade parameters
   loadParams: { vehicleType: string; loadPercent: number; gradePercent: number }
   setLoadParams: (p: Partial<{ vehicleType: string; loadPercent: number; gradePercent: number }>) => void
   calculatedLoad: any | null
   setCalculatedLoad: (v: any | null) => void
 
-  // Olay bölgeleri
+  // Event zones
   activeEvents: EventZone[]
   setActiveEvents: (events: EventZone[]) => void
   addEventZone: (ev: EventZone) => void
   removeEventZone: (id: string) => void
 
-  // Olay ekleme modu
+  // Event placing mode
   eventPlacingType: string | null
   setEventPlacingType: (t: string | null) => void
 
-  // Sunum modu
+  // Presentation mode
   presentationMode: boolean
   setPresentationMode: (v: boolean) => void
 }

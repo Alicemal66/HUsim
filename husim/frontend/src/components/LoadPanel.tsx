@@ -18,7 +18,7 @@ export default function LoadPanel() {
         })
         setCalculatedLoad(result)
       } catch (_) {
-        // Backend henüz başlamamış olabilir
+        // Backend may not have started yet
       }
     }, 250)
     return () => clearTimeout(timer)
@@ -44,7 +44,7 @@ export default function LoadPanel() {
         {tr.loadSystem.title}
       </h2>
 
-      {/* Araç Tipi */}
+      {/* Vehicle Type */}
       <div>
         <label className="text-xs text-slate-400 mb-1 block">{tr.loadSystem.vehicleType}</label>
         <select
@@ -58,7 +58,7 @@ export default function LoadPanel() {
         </select>
       </div>
 
-      {/* Yük Yüzdesi */}
+      {/* Load Percentage */}
       <div>
         <label className="text-xs text-slate-300 mb-1 block">
           {tr.loadSystem.loadPercent}: {loadParams.loadPercent}%
@@ -70,7 +70,7 @@ export default function LoadPanel() {
           style={{ accentColor: '#f59e0b' }}
           className="w-full h-1.5 rounded cursor-pointer"
         />
-        {/* Hızlı Preset Butonlar */}
+        {/* Quick Preset Buttons */}
         <div className="flex gap-1 mt-1.5">
           {([['Boş', 0, 'empty'], ['Yarı', 50, 'halfLoaded'], ['Tam', 100, 'fullLoaded']] as const).map(([, pct, key]) => (
             <button
@@ -88,7 +88,7 @@ export default function LoadPanel() {
         </div>
       </div>
 
-      {/* Eğim */}
+      {/* Grade */}
       <div>
         <label className="text-xs mb-1 block" style={{ color: gradeColor }}>
           {tr.loadSystem.grade}: {gradeLabel}
@@ -102,7 +102,7 @@ export default function LoadPanel() {
         />
       </div>
 
-      {/* Hesaplanan Değerler */}
+      {/* Calculated Values */}
       {calculatedLoad && (
         <div className="grid grid-cols-2 gap-1 text-xs mt-1">
           <ParamRow label={tr.loadSystem.maxSpeed} value={`${calculatedLoad.max_speed_ms} m/s`} />

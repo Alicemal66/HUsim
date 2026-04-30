@@ -1,4 +1,4 @@
-"""HÜsim — Senaryo yükleyici ve MineSim-Dynamic entegrasyonu"""
+"""HÜsim — Scenario loader and MineSim-Dynamic integration"""
 import json
 import math
 import random
@@ -21,10 +21,10 @@ _POSSIBLE_MINESIM_PATHS = [
 def _find_minesim_path() -> Path:
     for p in _POSSIBLE_MINESIM_PATHS:
         if (p / "inputs").exists():
-            logger.info(f"MineSim-Dynamic bulundu: {p}")
+            logger.info(f"MineSim-Dynamic found: {p}")
             return p
-    logger.warning("MineSim-Dynamic bulunamadı — demo modu aktif")
-    return _POSSIBLE_MINESIM_PATHS[1]  # Fallback (boş da olsa)
+    logger.warning("MineSim-Dynamic not found — demo mode active")
+    return _POSSIBLE_MINESIM_PATHS[1]  # Fallback (even if empty)
 
 MINESIM_PATH = _find_minesim_path()
 INPUTS_PATH = MINESIM_PATH / "inputs"
@@ -43,13 +43,13 @@ HAZIR_SENARYOLAR = [
     {"id": "demo_complex_8vehicles",       "name": "Karmaşık Kavşak — 8 Araç",  "agents": 8, "type": "complex",  "legacy": True},
     {"id": "demo_t_night",                 "name": "Gece Kavşak — 3 Araç",      "agents": 3, "type": "T",        "legacy": True},
     {"id": "demo_cross_rain",              "name": "Yağmurlu Çapraz Kavşak",     "agents": 4, "type": "cross",    "legacy": True},
-    # Filo yönetim senaryoları
+    # Fleet management scenarios
     {"id": "fleet_intersection",           "name": "Filo: Kavşak Koordinasyonu", "agents": 4, "type": "T",        "legacy": True},
     {"id": "fleet_narrow_pass",            "name": "Filo: Karşılıklı Geçiş",     "agents": 2, "type": "straight", "legacy": True},
     {"id": "fleet_convoy",                 "name": "Filo: Konvoy",               "agents": 3, "type": "straight", "legacy": True},
     {"id": "fleet_obstacle",               "name": "Filo: Acil Engel",           "agents": 1, "type": "straight", "legacy": True},
     {"id": "fleet_heavy_traffic",          "name": "Filo: Yoğun Trafik",         "agents": 5, "type": "cross",    "legacy": True},
-    # Stabil senaryolar — geometrik olarak çarpışma imkansız
+    # Stable scenarios — collision geometrically impossible
     {"id": "stable_parallel",    "name": "Paralel Yollar (Stabil)",      "agents": 2, "type": "straight", "stable": True},
     {"id": "stable_sequential",  "name": "Sıralı Geçiş (Stabil)",        "agents": 2, "type": "T",        "stable": True},
     {"id": "stable_convoy",      "name": "Konvoy (Stabil)",               "agents": 2, "type": "straight", "stable": True},
@@ -74,13 +74,13 @@ EXTENDED_SCENARIOS = [
 
 def find_all_scenarios() -> list[dict]:
     """
-    MineSim klasöründeki tüm gerçek senaryoları bul.
-    Demo senaryolarla ve üretilmiş senaryolarla birleştir.
+    Find all real scenarios in the MineSim folder.
+    Merge with demo scenarios and generated scenarios.
     """
     scenarios = []
     seen_ids = set()
 
-    # 1) Gerçek MineSim dosyaları
+    # 1) Real MineSim files
     if INPUTS_PATH.exists():
         for f in sorted(INPUTS_PATH.glob("Scenario-*.json")):
             scenario_id = f.stem.replace("Scenario-", "")
@@ -91,7 +91,7 @@ def find_all_scenarios() -> list[dict]:
                 cnt = data.get("CntVehicle", len(traj))
                 dt = data.get("dt", 0.1)
                 max_t = data.get("max_t", 40.0)
-                # En uzun araç süresi = frame sayısı
+                # Longest vehicle duration = frame count
                 max_end = max(
                     (t.get("EndTimeInScene", 0) for t in traj),
                     default=max_t
@@ -112,9 +112,9 @@ def find_all_scenarios() -> list[dict]:
                 })
                 seen_ids.add(scenario_id)
             except Exception as e:
-                logger.error(f"Senaryo okunamadı {f}: {e}")
+                logger.error(f"Scenario could not be read {f}: {e}")
 
-    # 2) Hazır demo + real senaryolar (gerçek dosya bulunamayanlar için demo üret)
+    # 2) Pre-built demo + real scenarios (generate demo for those without real files)
     for s in HAZIR_SENARYOLAR:
         if s["id"] not in seen_ids:
             demo_agents = s["agents"]
@@ -146,7 +146,7 @@ def find_all_scenarios() -> list[dict]:
             })
             seen_ids.add(s["id"])
 
-    # 3) Genişletilmiş senaryolar (Faza E)
+    # 3) Extended scenarios (Phase E)
     for s in EXTENDED_SCENARIOS:
         if s["id"] not in seen_ids:
             grade = s.get("grade", 0)
@@ -173,7 +173,7 @@ def find_all_scenarios() -> list[dict]:
             })
             seen_ids.add(s["id"])
 
-    # 4) Statik demo senaryolar (demo_scenarios/ klasörü — çarpışma imkansız)
+    # 4) Static demo scenarios (demo_scenarios/ folder — collision impossible)
     if DEMO_SCENARIOS_PATH.exists():
         for f in sorted(DEMO_SCENARIOS_PATH.glob("demo_*.json")):
             sid = f.stem
@@ -210,9 +210,9 @@ def find_all_scenarios() -> list[dict]:
                     })
                     seen_ids.add(sid)
                 except Exception as e:
-                    logger.error(f"Statik demo okunamadı {f}: {e}")
+                    logger.error(f"Static demo could not be read {f}: {e}")
 
-    # 5) Üretilmiş senaryolar
+    # 5) Generated scenarios
     if GENERATED_PATH.exists():
         for f in sorted(GENERATED_PATH.glob("*.json")):
             gid = f.stem
@@ -235,13 +235,13 @@ def find_all_scenarios() -> list[dict]:
                     })
                     seen_ids.add(gid)
                 except Exception as e:
-                    logger.error(f"Üretilmiş senaryo okunamadı {f}: {e}")
+                    logger.error(f"Generated scenario could not be read {f}: {e}")
 
     return scenarios
 
 
 def _add_engine_temps(data: dict, grade_percent: float = 0.0, ambient_temp: float = 20.0) -> dict:
-    """Frame listesindeki her araç için motor sıcaklığı verisini ekle."""
+    """Add engine temperature data for each vehicle in the frame list."""
     engines: dict[str, EngineModel] = {}
     for frame in data.get("frames", []):
         for v in frame.get("vehicles", []):
@@ -262,8 +262,8 @@ def _add_engine_temps(data: dict, grade_percent: float = 0.0, ambient_temp: floa
 
 def load_scenario_frames(scenario_id: str, path: Optional[str], grade_percent: float = 0.0, ambient_temp: float = 20.0) -> dict:
     """
-    MineSim log dosyasını yükle ve parse et. Yoksa demo üret.
-    Standart HÜsim frame formatına normalize et.
+    Load and parse the MineSim log file. Generate demo if not found.
+    Normalize to the standard HÜsim frame format.
     """
     data = _raw_load_scenario_frames(scenario_id, path)
     rg_grade = data.get("road_geometry", {}).get("grade", grade_percent)
@@ -271,15 +271,15 @@ def load_scenario_frames(scenario_id: str, path: Optional[str], grade_percent: f
 
 
 def _raw_load_scenario_frames(scenario_id: str, path: Optional[str]) -> dict:
-    # Statik demo senaryo?
+    # Static demo scenario?
     demo_file = DEMO_SCENARIOS_PATH / f"{scenario_id}.json"
     if demo_file.exists():
         try:
             return _parse_minesim_file(scenario_id, str(demo_file))
         except Exception as e:
-            logger.error(f"Statik demo parse hatası {demo_file}: {e}")
+            logger.error(f"Static demo parse error {demo_file}: {e}")
 
-    # Üretilmiş senaryo?
+    # Generated scenario?
     gen_file = GENERATED_PATH / f"{scenario_id}.json"
     if gen_file.exists():
         try:
@@ -290,15 +290,15 @@ def _raw_load_scenario_frames(scenario_id: str, path: Optional[str]) -> dict:
         except Exception:
             pass
 
-    # Stabil senaryo?
+    # Stable scenario?
     if scenario_id.startswith("stable_"):
         return _generate_stable_scenario(scenario_id)
 
-    # Filo senaryo?
+    # Fleet scenario?
     if scenario_id.startswith("fleet_"):
         return _generate_fleet_scenario(scenario_id)
 
-    # Genişletilmiş senaryo?
+    # Extended scenario?
     if scenario_id.startswith("ext_"):
         return _generate_extended_scenario(scenario_id)
 
@@ -306,9 +306,9 @@ def _raw_load_scenario_frames(scenario_id: str, path: Optional[str]) -> dict:
         try:
             return _parse_minesim_file(scenario_id, path)
         except Exception as e:
-            logger.error(f"MineSim parse hatası {path}: {e}")
+            logger.error(f"MineSim parse error {path}: {e}")
 
-    # Hazır listeden agent sayısı bul
+    # Find agent count from the pre-built list
     meta = next((s for s in HAZIR_SENARYOLAR if s["id"] == scenario_id), None)
     agent_count = meta["agents"] if meta else 3
     scenario_type = meta["type"] if meta else _guess_type(scenario_id)
@@ -317,14 +317,14 @@ def _raw_load_scenario_frames(scenario_id: str, path: Optional[str]) -> dict:
 
 def _parse_minesim_file(scenario_id: str, path: str) -> dict:
     """
-    MineSim JSON'unu okuyarak standart frame formatına dönüştür.
+    Read MineSim JSON and convert to the standard frame format.
 
-    JSON yapısı:
-      - ego_info.start_states: EGO'nun başlangıç durumu (x, y, yaw_rad, v_mps)
-      - ego_info.VehicleShapeInfo: EGO boyutları
-      - goal: EGO'nun hedef poligonu {x:[...], y:[...]}
-      - TrajSegmentInfo: NPC araçları (tümü); her biri states.x, y, yaw_rad, v_mps içerir
-      - dt, max_t: zaman adımı ve toplam süre
+    JSON structure:
+      - ego_info.start_states: EGO initial state (x, y, yaw_rad, v_mps)
+      - ego_info.VehicleShapeInfo: EGO dimensions
+      - goal: EGO goal polygon {x:[...], y:[...]}
+      - TrajSegmentInfo: NPC vehicles (all); each contains states.x, y, yaw_rad, v_mps
+      - dt, max_t: time step and total duration
     """
     with open(path, encoding="utf-8") as fp:
         data = json.load(fp)
@@ -336,9 +336,9 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
     goal_data = data.get("goal", {})
 
     if not traj_list and not ego_info:
-        raise ValueError("TrajSegmentInfo ve ego_info boş")
+        raise ValueError("TrajSegmentInfo and ego_info are empty")
 
-    # ── EGO başlangıç bilgileri ───────────────────────────────────────────────
+    # ── EGO initial information ───────────────────────────────────────────────
     ego_start = ego_info.get("start_states", {})
     ego_shape = ego_info.get("VehicleShapeInfo", {})
 
@@ -347,31 +347,31 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
     ego_yaw0 = float(ego_start.get("yaw_rad", 0.0))
     ego_v0 = float(ego_start.get("v_mps", 4.5))
 
-    # ── Hedef merkezi (goal poligon ortalaması) ───────────────────────────────
+    # ── Goal center (average of goal polygon) ────────────────────────────────
     goal_xs = goal_data.get("x", [])
     goal_ys = goal_data.get("y", [])
     if goal_xs and goal_ys:
         goal_cx = sum(goal_xs) / len(goal_xs)
         goal_cy = sum(goal_ys) / len(goal_ys)
     else:
-        # Yoksa başlangıç yönünde 100m ilerle
+        # If missing, advance 100m in the starting direction
         goal_cx = ego_x0 + math.cos(ego_yaw0) * 100.0
         goal_cy = ego_y0 + math.sin(ego_yaw0) * 100.0
 
-    # ── EGO trayektorisi: başlangıçtan hedefe bezier eğrisi ──────────────────
+    # ── EGO trajectory: cubic bezier curve from start to goal ────────────────
     ego_xs, ego_ys, ego_yaws, ego_speeds = _generate_ego_trajectory(
         ego_x0, ego_y0, ego_yaw0, ego_v0, goal_cx, goal_cy, dt, max_t
     )
     ego_n_frames = len(ego_xs)
 
-    # ── NPC araçları ──────────────────────────────────────────────────────────
+    # ── NPC vehicles ─────────────────────────────────────────────────────────
     npc_data_list = []
     npc_max_end = 0.0
     for i, traj in enumerate(traj_list):
         states = traj.get("states", {})
         xs_raw = states.get("x", [])
         ys_raw = states.get("y", [])
-        # Gerçek anahtar isimleri: yaw_rad ve v_mps (heading/v değil)
+        # Actual key names: yaw_rad and v_mps (not heading/v)
         yaws_raw = states.get("yaw_rad", [])
         speeds_raw = states.get("v_mps", [])
 
@@ -410,15 +410,15 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
             "speeds": spds,
         })
 
-    # ── Toplam frame sayısı ───────────────────────────────────────────────────
+    # ── Total frame count ─────────────────────────────────────────────────────
     total_frames = max(ego_n_frames, int(max(npc_max_end, max_t) / dt) + 1)
 
-    # ── Referans: EGO başlangıç pozisyonu ────────────────────────────────────
+    # ── Reference: EGO starting position ─────────────────────────────────────
     ref_x = ego_x0
     ref_y = ego_y0
 
-    # ── ORCA tabanlı EGO navigasyonu ─────────────────────────────────────────
-    # NPC'ler sabit yörüngede (reciprocal=False); EGO ORCA ile kaçınır.
+    # ── ORCA-based EGO navigation ────────────────────────────────────────────
+    # NPCs follow fixed trajectories (reciprocal=False); EGO avoids with ORCA.
 
     ego_len_val = float(ego_shape.get("length", 9.0))
     ego_wid_val = float(ego_shape.get("width", 4.0))
@@ -433,7 +433,7 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
     evx_dyn = math.cos(ego_yaw0) * ego_v0
     evy_dyn = math.sin(ego_yaw0) * ego_v0
 
-    # EGO için bezier trayektori — sadece yol geometrisi çizimi için kullanılır
+    # EGO bezier trajectory — used only for road geometry rendering
     ego_xs_n = [x - ref_x for x in ego_xs]
     ego_ys_n = [y - ref_y for y in ego_ys]
 
@@ -442,7 +442,7 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
     ego_actual_ys: list[float] = []
 
     for frame_idx in range(total_frames):
-        # EGO tercih edilen hız: hedefe doğru
+        # EGO preferred velocity: toward the goal
         dx_g = goal_cx - ex_dyn
         dy_g = goal_cy - ey_dyn
         dist_g = math.hypot(dx_g, dy_g)
@@ -454,7 +454,7 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
         else:
             pvx, pvy = 0.0, 0.0
 
-        # ORCA girdi listesi: EGO (reciprocal) + NPC'ler (non-reciprocal)
+        # ORCA input list: EGO (reciprocal) + NPCs (non-reciprocal)
         agents_orca: list[dict] = [{
             "id": "ego",
             "x": ex_dyn, "y": ey_dyn,
@@ -501,7 +501,7 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
         ego_actual_xs.append(ex_dyn - ref_x)
         ego_actual_ys.append(ey_dyn - ref_y)
 
-        # Frame oluştur
+        # Build frame
         vehicles = [{
             "id": "ego",
             "x": round(ex_dyn - ref_x, 3),
@@ -538,11 +538,11 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
                 "completed": frame_idx == total_frames - 1,
             })
 
-    # Yol geometrisi için EGO gerçek trayektorisini kullan
+    # Use EGO actual trajectory for road geometry
     ego_xs_n = ego_actual_xs
     ego_ys_n = ego_actual_ys
 
-    # ── Yol geometrisi ────────────────────────────────────────────────────────
+    # ── Road geometry ─────────────────────────────────────────────────────────
     all_vd_normalized = [
         {
             **nd,
@@ -551,7 +551,7 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
         }
         for nd in npc_data_list
     ]
-    # EGO trayektorisini de ekle
+    # Also add EGO trajectory
     all_vd_normalized.insert(0, {
         "pos_x": ego_xs_n,
         "pos_y": ego_ys_n,
@@ -559,7 +559,7 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
     })
     road_geometry = _extract_road_geometry(all_vd_normalized, 0.0, 0.0)
 
-    # Normalize edilmiş hedef poligon — frontend'de yeşil alan olarak çizilir
+    # Normalized goal polygon — drawn as a green area in the frontend
     goal_xs_n = [x - ref_x for x in goal_xs]
     goal_ys_n = [y - ref_y for y in goal_ys]
     if goal_xs_n and goal_ys_n:
@@ -568,12 +568,12 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
             for x, y in zip(goal_xs_n, goal_ys_n)
         ]
 
-    # Viewport sınırları: JSON sınırları + tüm trayektori noktaları
-    # EGO başlangıcı (0,0) ve tüm NPC yolları kapsansın
+    # Viewport bounds: JSON bounds + all trajectory points
+    # EGO start (0,0) and all NPC paths should be covered
     pad = 15.0
     all_traj_x = list(ego_xs_n)
     all_traj_y = list(ego_ys_n)
-    for nd in all_vd_normalized[1:]:   # EGO hariç NPC'ler
+    for nd in all_vd_normalized[1:]:   # NPCs excluding EGO
         all_traj_x.extend(nd["pos_x"])
         all_traj_y.extend(nd["pos_y"])
     if goal_xs_n:
@@ -607,7 +607,7 @@ def _parse_minesim_file(scenario_id: str, path: str) -> dict:
         "source": "minesim_real",
         "total_frames": total_frames,
         "dt": dt,
-        "agent_count": len(traj_list) + 1,  # NPC'ler + EGO
+        "agent_count": len(traj_list) + 1,  # NPCs + EGO
         "total_time": max_t,
         "frames": frames,
         "road_geometry": road_geometry,
@@ -619,22 +619,22 @@ def _generate_ego_trajectory(
     goal_x: float, goal_y: float, dt: float, max_t: float
 ) -> tuple:
     """
-    EGO için başlangıçtan hedefe kübik bezier eğrisi üret.
-    Başlangıç yönünü, hedef yönünü dikkate alarak yumuşak geçiş sağlar.
-    Döndürür: (xs, ys, yaws, speeds)
+    Generate a cubic bezier curve for EGO from start to goal.
+    Provides a smooth transition accounting for the start and goal directions.
+    Returns: (xs, ys, yaws, speeds)
     """
     n_frames = int(max_t / dt) + 1
     dist = math.hypot(goal_x - x0, goal_y - y0)
 
     if dist < 0.1:
-        # Başlangıç = hedef, yerinde dur
+        # Start = goal, stay in place
         xs = [x0] * n_frames
         ys = [y0] * n_frames
         yaws = [yaw0] * n_frames
         speeds = [0.0] * n_frames
         return xs, ys, yaws, speeds
 
-    # Kontrol noktaları: başlangıç yönünden uzat, hedef yönüne yaklaş
+    # Control points: extend from start direction, approach from goal direction
     approach_angle = math.atan2(goal_y - y0, goal_x - x0)
     ctrl_dist = dist / 3.0
 
@@ -655,12 +655,12 @@ def _generate_ego_trajectory(
 
     yaws = _compute_headings(xs, ys)
 
-    # Hız: başlangıç hızından kalkış, orta cruise, sonda yavaşla
+    # Speed: ramp from starting speed, cruise in the middle, slow down at the end
     avg_speed = dist / max_t
     speeds = []
     for i in range(n_frames):
         frac = i / (n_frames - 1) if n_frames > 1 else 0.0
-        # Trapezoid hız profili: %20 ivme, %60 cruise, %20 fren
+        # Trapezoid speed profile: 20% acceleration, 60% cruise, 20% braking
         if frac < 0.2:
             s = v0 + (avg_speed * 1.1 - v0) * (frac / 0.2)
         elif frac > 0.8:
@@ -674,9 +674,9 @@ def _generate_ego_trajectory(
 
 def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type: str = "T") -> dict:
     """
-    ORCA tabanlı demo frame üretici.
-    Tüm araçlar (EGO + ajanlar) her frame'de ORCA ile çarpışmasız hız hesaplar.
-    EGO ve tüm ajanlar waypoint rotalarını takip eder.
+    ORCA-based demo frame generator.
+    All vehicles (EGO + agents) compute collision-free velocities with ORCA each frame.
+    EGO and all agents follow waypoint routes.
     """
     dt = 0.1
     MAX_FRAMES = 900
@@ -695,8 +695,8 @@ def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type:
     orca = ORCASolver(time_horizon=4.0, time_step=dt)
 
     def _pref_vel(x: float, y: float, route: list, wp_idx: int, max_speed: float):
-        """Rota üzerindeki sonraki waypoint'e tercih edilen hız vektörü hesapla."""
-        # Mevcut waypoint'e yaklaşıldıysa sonrakine geç
+        """Calculate preferred velocity vector toward the next waypoint on the route."""
+        # Advance to the next waypoint if approaching the current one
         while wp_idx < len(route) - 1:
             gx, gy = float(route[wp_idx][0]), float(route[wp_idx][1])
             if math.hypot(gx - x, gy - y) < WAYPOINT_REACH_DIST:
@@ -716,7 +716,7 @@ def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type:
 
         speed = gspd if gspd > 0.1 else max_speed
         speed = min(speed, max_speed)
-        # Son waypoint'e yaklaşınca yavaşla
+        # Slow down when approaching the last waypoint
         if wp_idx == len(route) - 1 and dist < 12.0:
             speed = speed * max(0.1, dist / 12.0)
 
@@ -724,13 +724,13 @@ def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type:
         ny_d = (gy - y) / dist
         return nx_d * speed, ny_d * speed, wp_idx
 
-    # EGO başlangıç durumu
+    # EGO initial state
     ex = float(ego_route[0][0])
     ey = float(ego_route[0][1])
     evx, evy = 0.0, 0.0
     ego_wp = 1 if len(ego_route) > 1 else 0
 
-    # Ajan başlangıç durumları
+    # Agent initial states
     agent_states = []
     for ai, route in enumerate(agent_routes):
         vlen, vwid = agent_sizes[ai]
@@ -748,10 +748,10 @@ def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type:
     ego_goal_frame: int | None = None
 
     for fi in range(MAX_FRAMES):
-        # EGO tercih edilen hız
+        # EGO preferred velocity
         pvx_e, pvy_e, ego_wp = _pref_vel(ex, ey, ego_route, ego_wp, 7.5)
 
-        # Tüm araçları ORCA'ya gönder
+        # Send all vehicles to ORCA
         agents_input = [{
             "id": "ego",
             "x": ex, "y": ey,
@@ -777,13 +777,13 @@ def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type:
         new_vels = orca.compute_new_velocities(agents_input)
         vel_map = {v["id"]: v for v in new_vels}
 
-        # EGO güncelle
+        # Update EGO
         nv_e = vel_map["ego"]
         evx, evy = nv_e["new_vx"], nv_e["new_vy"]
         ex += evx * dt
         ey += evy * dt
 
-        # Ajanları güncelle
+        # Update agents
         for ai, st in enumerate(agent_states):
             nv_a = vel_map[f"agent_{ai + 1}"]
             st["vx"] = nv_a["new_vx"]
@@ -791,14 +791,14 @@ def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type:
             st["x"] += st["vx"] * dt
             st["y"] += st["vy"] * dt
 
-        # EGO hedefe ulaştı mı?
+        # Did EGO reach the goal?
         last_wp = ego_route[-1]
         if ego_goal_frame is None and math.hypot(ex - last_wp[0], ey - last_wp[1]) < 5.0:
             ego_goal_frame = fi
 
         is_completed = ego_goal_frame is not None and fi >= ego_goal_frame + 20
 
-        # Frame oluştur
+        # Build frame
         eh = nv_e["new_heading"]
         es = nv_e["new_speed"]
         vehicles: list[dict] = [{
@@ -846,10 +846,10 @@ def generate_rich_demo_frames(scenario_id: str, agent_count: int, scenario_type:
     }
 
 
-# ── Yardımcı fonksiyonlar ─────────────────────────────────────────────────────
+# ── Helper functions ──────────────────────────────────────────────────────────
 
 def _extract_val(v) -> float:
-    """[[x]] veya [x] veya x → float"""
+    """[[x]] or [x] or x → float"""
     if isinstance(v, list):
         return _extract_val(v[0]) if v else 0.0
     return float(v)
@@ -884,7 +884,7 @@ def _compute_speeds(xs: list, ys: list, dt: float) -> list:
 
 
 def _extract_road_geometry(vehicles_data: list, ref_x: float, ref_y: float) -> dict:
-    """Araç yollarından MineSim tarzı yol geometrisi çıkar (drivable_polygons + centerlines)."""
+    """Extract MineSim-style road geometry from vehicle paths (drivable_polygons + centerlines)."""
     all_pts = []
     for vd in vehicles_data:
         for x, y in zip(vd["pos_x"], vd["pos_y"]):
@@ -898,11 +898,11 @@ def _extract_road_geometry(vehicles_data: list, ref_x: float, ref_y: float) -> d
     cx = (min(xs) + max(xs)) / 2
     cy = (min(ys) + max(ys)) / 2
     road_width = 8.0
-    lane_hw = 5.0  # yarı genişlik: 1 şerit ~5m
+    lane_hw = 5.0  # half-width: 1 lane ~5m
 
-    # Araçları yatay/dikey gruba ayır; her araç için Y/X centroid kullan
-    horiz_y_cents: list[float] = []   # her yatay aracın Y merkezi
-    vert_x_cents: list[float] = []    # her dikey aracın X merkezi
+    # Classify vehicles into horizontal/vertical groups; use Y/X centroid per vehicle
+    horiz_y_cents: list[float] = []   # Y center of each horizontal vehicle
+    vert_x_cents: list[float] = []    # X center of each vertical vehicle
     ego_start: tuple | None = None
 
     for vd in vehicles_data:
@@ -924,7 +924,7 @@ def _extract_road_geometry(vehicles_data: list, ref_x: float, ref_y: float) -> d
 
     if horiz_y_cents:
         hy_c = sum(horiz_y_cents) / len(horiz_y_cents)
-        # Şeritler arası aralık + şerit genişliği
+        # Inter-lane spacing + lane width
         y_spread = (max(horiz_y_cents) - min(horiz_y_cents)) if len(horiz_y_cents) > 1 else 0
         hy_hw = max(y_spread / 2 + lane_hw, road_width / 2)
         hx_lo, hx_hi = min(xs) - 5, max(xs) + 5
@@ -942,11 +942,11 @@ def _extract_road_geometry(vehicles_data: list, ref_x: float, ref_y: float) -> d
                        {"x": round(hx_hi, 1), "y": round(hy_c, 1)}],
             "type": "base",
         })
-        # EGO dikey koldan geliyorsa: EGO başlangıcı ana yolun dışındaysa dikey kol ekle
+        # If EGO comes from a vertical branch: add vertical branch if EGO start is outside the main road
         if ego_start and not vert_x_cents:
             ey0 = ego_start[1]
             if ey0 > hy_c + hy_hw + 2 or ey0 < hy_c - hy_hw - 2:
-                # EGO ana yolun dışından geliyor — dikey kol çıkar
+                # EGO approaches from outside the main road — add vertical branch
                 vx_c = ego_start[0]
                 if ey0 > hy_c + hy_hw:
                     vy_lo, vy_hi = hy_c + hy_hw, ey0 + 5
@@ -966,7 +966,7 @@ def _extract_road_geometry(vehicles_data: list, ref_x: float, ref_y: float) -> d
                                {"x": round(vx_c, 1), "y": round(vy_hi, 1)}],
                     "type": "connector",
                 })
-                # Kavşak: yalnızca kol girişi etrafında küçük alan
+                # Intersection: small area around the branch entry only
                 jx_hw = lane_hw
                 jy = vy_lo if ey0 > hy_c + hy_hw else vy_hi
                 jy_lo = min(jy, hy_c) - jx_hw
@@ -1033,7 +1033,7 @@ def _extract_road_geometry(vehicles_data: list, ref_x: float, ref_y: float) -> d
 
 
 def _make_demo_road_geometry(scenario_type: str, road_half_w: float = 8.0) -> dict:
-    """Demo yol geometrisi üret (MineSim tarzı drivable_polygons + centerlines dahil)."""
+    """Generate demo road geometry (including MineSim-style drivable_polygons + centerlines)."""
     rw = road_half_w  # half-width of each road arm
     base: dict = {"road_width": rw * 2, "center": {"x": 0, "y": 0}}
 
@@ -1134,15 +1134,15 @@ def _make_demo_road_geometry(scenario_type: str, road_half_w: float = 8.0) -> di
 
 
 def _make_ego_route(scenario_type: str) -> list:
-    """EGO aracı rotası: (x, y, speed) waypoint listesi. Şerit ayrımlı."""
+    """EGO vehicle route: (x, y, speed) waypoint list. Lane-separated."""
     if scenario_type == "T":
-        # EGO sağ şerit (y=-3): soldan gelip kavşakta aşağı döner
+        # EGO right lane (y=-3): comes from left and turns down at the intersection
         return [
             (-55, -3, 0.0), (-30, -3, 8.0), (-5, -3, 6.0),
             (18, -3, 4.0), (18, -22, 5.0), (18, -46, 6.0),
         ]
     elif scenario_type == "cross":
-        # EGO alt şerit (y=-3): soldan sağa
+        # EGO bottom lane (y=-3): left to right
         return [
             (-55, -3, 0.0), (-15, -3, 8.5), (0, -3, 4.5),
             (15, -3, 7.0), (55, -3, 8.5),
@@ -1161,66 +1161,66 @@ def _make_ego_route(scenario_type: str) -> list:
 
 def _make_agent_routes(scenario_type: str, count: int) -> list:
     """
-    Ajan araç rotaları.
-    Tüm başlangıç pozisyonları birbirinden ve EGO'dan en az 20 birim uzakta.
-    Aynı rota üzerindeki ajanlar farklı başlangıç noktalarına yerleştirilmiş.
+    Agent vehicle routes.
+    All start positions are at least 20 units apart from each other and from EGO.
+    Agents on the same route are placed at different starting points.
     """
     all_routes: dict[str, list] = {
-        # T kavşak şerit düzeni:
-        #   EGO: y=-3, soldan sağa sonra aşağı (x=18 kolundan)
-        #   Karşı trafik: y=+3, sağdan sola
-        #   Dal trafiği: x=22, aşağıdan yukarı
+        # T intersection lane layout:
+        #   EGO: y=-3, left to right then down (via x=18 branch)
+        #   Oncoming traffic: y=+3, right to left
+        #   Branch traffic: x=22, bottom to top
         "T": [
-            # Ajan 0: sağdan sola, üst şerit (y=+3)
+            # Agent 0: right to left, upper lane (y=+3)
             [(65, 3, 0.0), (30, 3, 7.5), (5, 3, 5.0), (-10, 3, 4.5), (-35, 3, 7.0), (-65, 3, 7.5)],
-            # Ajan 1: daldan yukarı (x=22) — kavşakta EGO ile çakışabilir → EGO bekler
+            # Agent 1: from branch upward (x=22) — may conflict with EGO at intersection → EGO waits
             [(22, -52, 0.0), (22, -28, 6.0), (22, -8, 4.5), (22, 8, 5.0), (22, 28, 6.5)],
-            # Ajan 2: sağdan sola, üst şerit (FARKLI başlangıç: 85 → aralık bırakır)
+            # Agent 2: right to left, upper lane (DIFFERENT start: 85 → leaves gap)
             [(85, 3, 0.0), (55, 3, 8.0), (25, 3, 5.0), (-5, 3, 4.5), (-30, 3, 7.5), (-60, 3, 8.5)],
-            # Ajan 3: daldan aşağı (x=18)
+            # Agent 3: from branch downward (x=18)
             [(18, 28, 0.0), (18, 8, 6.5), (18, -18, 5.0), (18, -46, 6.0)],
-            # Ajan 4: soldan sağa, alt şerit (arkadan gelir)
+            # Agent 4: left to right, lower lane (approaches from behind)
             [(-65, -3, 0.0), (-35, -3, 7.5), (0, -3, 5.5), (22, -3, 4.5), (22, -30, 6.0), (22, -52, 7.0)],
         ],
-        # Çapraz kavşak:
-        #   EGO: y=-3, soldan sağa
-        #   Karşı: y=+3, sağdan sola
-        #   Dikey: x=+3 aşağıdan yukarı, x=-3 yukarıdan aşağı
+        # Cross intersection:
+        #   EGO: y=-3, left to right
+        #   Oncoming: y=+3, right to left
+        #   Vertical: x=+3 bottom to top, x=-3 top to bottom
         "cross": [
-            # Ajan 0: sağdan sola, üst şerit (y=+3)
+            # Agent 0: right to left, upper lane (y=+3)
             [(65, 3, 0.0), (25, 3, 8.0), (0, 3, 4.0), (-25, 3, 7.5), (-65, 3, 8.5)],
-            # Ajan 1: aşağıdan yukarı, sağ kolon (x=+3) — EGO yoluyla kesişir
+            # Agent 1: bottom to top, right column (x=+3) — crosses EGO path
             [(3, -62, 0.0), (3, -22, 7.5), (3, 0, 4.0), (3, 22, 7.0), (3, 62, 8.0)],
-            # Ajan 2: yukarıdan aşağı, sol kolon (x=-3) — EGO yoluyla kesişir
+            # Agent 2: top to bottom, left column (x=-3) — crosses EGO path
             [(-3, 62, 0.0), (-3, 22, 7.5), (-3, 0, 4.5), (-3, -22, 6.5), (-3, -58, 8.0)],
-            # Ajan 3: sağdan sola, dış üst şerit (y=+9, yeterince uzak) — EGO ile çakışmaz
+            # Agent 3: right to left, outer upper lane (y=+9, far enough) — does not conflict with EGO
             [(78, 9, 0.0), (35, 9, 8.0), (0, 9, 4.5), (-28, 9, 6.5), (-65, 9, 8.0)],
-            # Ajan 4: sağdan sola, dış alt şerit (y=-10) — EGO y=-3'ten lateral ayrımlı
+            # Agent 4: right to left, outer lower lane (y=-10) — laterally separated from EGO y=-3
             [(72, -10, 0.0), (30, -10, 7.5), (0, -10, 4.5), (-30, -10, 6.5), (-72, -10, 8.0)],
         ],
         "straight": [
-            # Karşı yönde üst şerit (y=+3) — EGO'ya paralel, karşı yön
+            # Oncoming upper lane (y=+3) — parallel to EGO, opposite direction
             [(78, 3, 0.0), (35, 3, 8.5), (0, 3, 4.0), (-35, 3, 7.5), (-78, 3, 8.5)],
-            # Aynı yönde alt şerit, sağ tarafa çıkar (EGO'nun önünde durmaz)
+            # Same direction lower lane, exits to the right (does not block EGO)
             [(-65, -3, 0.0), (-15, -3, 8.0), (30, -3, 7.5), (65, -3, 8.5), (100, -3, 8.5)],
         ],
-        # Karmaşık kavşak: EGO yolu (-55,-3)→(0,-3)→(0,-55); ajanlar EGO güzergahında yürümez
+        # Complex intersection: EGO path (-55,-3)→(0,-3)→(0,-55); agents do not drive on EGO route
         "complex": [
-            # Ajan 0: sağdan sola, yatay geçiş (y=-10 şeridinde, EGO y=-3'ten lateral ayrımlı)
+            # Agent 0: right to left, horizontal (y=-10 lane, laterally separated from EGO y=-3)
             [(65, -10, 0.0), (25, -10, 7.5), (-5, -10, 4.0), (-35, -10, 6.5), (-65, -10, 8.0)],
-            # Ajan 1: yukarıdan aşağı, x=+8 kolonu (EGO'nun x=0 kolunundan ayrı)
+            # Agent 1: top to bottom, x=+8 column (separate from EGO x=0 column)
             [(8, 65, 0.0), (8, 25, 7.0), (8, 0, 3.5), (8, -28, 6.0), (8, -58, 8.0)],
-            # Ajan 2: köşegen sol-üst'ten sağ-alt'a
+            # Agent 2: diagonal from upper-left to lower-right
             [(-48, 48, 0.0), (-22, 22, 6.5), (3, 3, 4.5), (22, -8, 6.5), (50, -30, 8.0)],
-            # Ajan 3: yukarıdan aşağı, x=+15 kolonu (EGO'dan tamamen ayrı)
+            # Agent 3: top to bottom, x=+15 column (completely separate from EGO)
             [(15, 65, 0.0), (15, 25, 7.0), (15, 0, 4.0), (15, -25, 6.0), (15, -60, 8.0)],
-            # Ajan 4: sağdan sola, üst şerit (y=+9)
+            # Agent 4: right to left, upper lane (y=+9)
             [(75, 9, 0.0), (32, 9, 7.5), (0, 9, 4.0), (-25, 9, 6.5), (-60, 9, 8.0)],
-            # Ajan 5: soldan sağa, üst şerit (y=+14)
+            # Agent 5: left to right, upper lane (y=+14)
             [(-60, 14, 0.0), (-25, 14, 7.0), (0, 14, 4.5), (25, 14, 6.5), (60, 14, 8.0)],
-            # Ajan 6: aşağıdan yukarı (x=+20, tamamen farklı kolon)
+            # Agent 6: bottom to top (x=+20, completely different column)
             [(20, -65, 0.0), (20, -25, 7.5), (20, 0, 4.0), (20, 25, 6.5), (20, 58, 8.0)],
-            # Ajan 7: sağdan sola, alt şerit (y=-14)
+            # Agent 7: right to left, lower lane (y=-14)
             [(62, -14, 0.0), (28, -14, 7.5), (0, -14, 4.5), (-32, -14, 6.0), (-60, -14, 8.0)],
         ],
     }
@@ -1229,7 +1229,7 @@ def _make_agent_routes(scenario_type: str, count: int) -> list:
 
 
 def _interpolate_route(waypoints: list, t: float, total_time: float) -> tuple:
-    """Waypoints listesinden t anında (x, y, heading, speed) döndür."""
+    """Return (x, y, heading, speed) at time t from the waypoints list."""
     if not waypoints:
         return 0.0, 0.0, 0.0, 0.0
 
@@ -1261,7 +1261,7 @@ def _interpolate_route(waypoints: list, t: float, total_time: float) -> tuple:
 
 
 def _pretty_name(scenario_id: str) -> str:
-    """ID'den güzel isim üret."""
+    """Generate a human-readable name from the scenario ID."""
     name_map = {
         "dapai_intersection_1_3_4": "Dapai Kavşak 1-3-4",
         "jiangtong_intersection_9_3_2": "Jiangtong Kavşak 9-3-2",
@@ -1281,10 +1281,10 @@ def _guess_type(scenario_id: str) -> str:
     return "T"
 
 
-# ── Filo Senaryo Yardımcıları ─────────────────────────────────────────────────
+# ── Fleet Scenario Helpers ────────────────────────────────────────────────────
 
 def _rlen(route: list) -> float:
-    """Rota toplam uzunluğu."""
+    """Total route length."""
     total = 0.0
     for i in range(len(route) - 1):
         dx = route[i + 1][0] - route[i][0]
@@ -1294,7 +1294,7 @@ def _rlen(route: list) -> float:
 
 
 def _rpos(route: list, dist: float) -> tuple:
-    """Rota üzerinde belirli mesafedeki (x, y, heading) değerini döndür."""
+    """Return (x, y, heading) at a given distance along the route."""
     remaining = max(0.0, dist)
     for i in range(len(route) - 1):
         dx = route[i + 1][0] - route[i][0]
@@ -1318,9 +1318,9 @@ def _rpos(route: list, dist: float) -> tuple:
 
 def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
     """
-    Öncelik tabanlı filo simülatörü.
-    Yüksek öncelikli araçlar önce konumlanır; düşük öncelikliler çakışma varsa bekler.
-    vehicles_cfg her eleman: {id, route, speed, length, width, priority, vehicle_type, start_delay}
+    Priority-based fleet simulator.
+    Higher-priority vehicles are positioned first; lower-priority ones wait if there is a conflict.
+    Each element of vehicles_cfg: {id, route, speed, length, width, priority, vehicle_type, start_delay}
     """
     total_frames = int(total_time / dt)
 
@@ -1342,7 +1342,7 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
     frames = []
 
     for fi in range(total_frames):
-        # Öncelik sırasına göre sırala (en yüksek önce = en düşük sayı)
+        # Sort by priority (highest first = lowest number)
         sorted_idx = sorted(range(len(states)), key=lambda k: states[k]["cfg"]["priority"])
 
         committed: list[dict] = []
@@ -1351,7 +1351,7 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
             st = states[idx]
             vc = st["cfg"]
 
-            # Bekleme süresi
+            # Wait timer
             if st["wait_timer"] > 0:
                 st["wait_timer"] = max(0.0, st["wait_timer"] - dt)
                 if st["wait_timer"] > 0:
@@ -1362,7 +1362,7 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
                     committed.append({**st, "len": vc["length"]})
                     continue
 
-            # Rota sonu
+            # End of route
             if st["dist"] >= st["total_dist"] - 0.05:
                 x, y, h = _rpos(vc["route"], st["total_dist"])
                 st["x"], st["y"], st["heading"] = x, y, h
@@ -1371,15 +1371,15 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
                 committed.append({**st, "len": vc["length"]})
                 continue
 
-            # Bir sonraki pozisyon
+            # Next position
             next_dist = min(st["total_dist"], st["dist"] + vc["speed"] * dt)
             nx, ny, nh = _rpos(vc["route"], next_dist)
 
-            # Çakışma kontrolü
+            # Conflict check
             blocked = False
             committed_set = {cs.get("id") for cs in committed}
 
-            # 1) Commit edilmiş (yüksek öncelikli) araçlar — tam güvenli mesafe
+            # 1) Committed (higher-priority) vehicles — full safe distance
             for cs in committed:
                 d = math.hypot(nx - cs["x"], ny - cs["y"])
                 heading_diff = abs(((nh - cs["heading"]) + math.pi) % (2 * math.pi) - math.pi)
@@ -1391,7 +1391,7 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
                     blocked = True
                     break
 
-            # 2) Henüz işlenmemiş araçların mevcut pozisyonları — sadece fiziksel çakışma eşiği
+            # 2) Current positions of not-yet-processed vehicles — physical collision threshold only
             if not blocked:
                 for other_st in states:
                     other_vc = other_st["cfg"]
@@ -1399,15 +1399,15 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
                         continue
                     d = math.hypot(nx - other_st["x"], ny - other_st["y"])
                     heading_diff = abs(((nh - other_st["heading"]) + math.pi) % (2 * math.pi) - math.pi)
-                    # Yalnızca karşıdan gelen aynı şerit senaryosunda (heading_diff > 2.5 → karşı yön)
-                    # fiziksel boyut tabanlı dar eşik kullan
+                    # Use narrow physical-size threshold only for oncoming same-lane scenario
+                    # (heading_diff > 2.5 → opposite direction)
                     if heading_diff > 2.5:
                         phys_safe = (vc["length"] + other_vc["length"]) * 0.5 + 2.0
                         if d < phys_safe:
                             blocked = True
                             break
 
-            # Sarı bölge: min_safe'nin 1.8 katı mesafede yavaşla
+            # Warning zone: slow down at 1.8x min_safe distance
             slowing = False
             if not blocked:
                 for cs in committed:
@@ -1441,7 +1441,7 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
 
             committed.append({**st, "len": vc["length"]})
 
-        # Frame oluştur
+        # Build frame
         vehicles = []
         for st in states:
             vc = st["cfg"]
@@ -1469,7 +1469,7 @@ def _fleet_sim_frames(vehicles_cfg: list, dt: float, total_time: float) -> list:
 
 
 def _generate_fleet_scenario(scenario_id: str) -> dict:
-    """Filo senaryo yönlendirici."""
+    """Fleet scenario dispatcher."""
     generators = {
         "fleet_intersection": _gen_fleet_intersection,
         "fleet_narrow_pass": _gen_fleet_narrow_pass,
@@ -1484,7 +1484,7 @@ def _generate_fleet_scenario(scenario_id: str) -> dict:
 
 
 def _gen_fleet_intersection() -> dict:
-    """Senaryo 1 — Kavşak Koordinasyonu: EGO en yüksek öncelik, ajanlar bekler."""
+    """Scenario 1 — Intersection Coordination: EGO has highest priority, agents wait."""
     dt = 0.1
     total_time = 28.0
 
@@ -1547,13 +1547,13 @@ def _gen_fleet_intersection() -> dict:
 
 
 def _gen_fleet_narrow_pass() -> dict:
-    """Senaryo 2 — Karşılıklı Geçiş: dar yolda karşıdan gelen araçlar."""
+    """Scenario 2 — Mutual Passing: oncoming vehicles on a narrow road."""
     dt = 0.1
     total_time = 22.0
 
-    # EGO soldan sağa, en yüksek öncelik
-    # Agent 1 sağdan sola, ortada bekleme noktasına çekilerek EGO'yu geçirir
-    # Geçiş noktası: x=30 (burada durur)
+    # EGO left to right, highest priority
+    # Agent 1 right to left, pulls to a waiting point in the middle to let EGO pass
+    # Passing point: x=30 (stops here)
     vehicles = [
         {
             "id": "ego",
@@ -1604,19 +1604,19 @@ def _gen_fleet_narrow_pass() -> dict:
 
 
 def _gen_fleet_convoy() -> dict:
-    """Senaryo 3 — Konvoy: 4 araç aynı rotada, sabit aralıklı."""
+    """Scenario 3 — Convoy: 4 vehicles on the same route, fixed spacing."""
     dt = 0.1
     total_time = 20.0
     total_frames = int(total_time / dt)
 
-    # Araçların gerisinde başlaması için rota uzatıldı
-    gap = 18.0   # hedef araç mesafesi (m)
+    # Route extended so vehicles start behind
+    gap = 18.0   # target inter-vehicle distance (m)
     route = [(-85 - 3 * gap, -2), (-85, -2), (-40, -2), (0, -2), (40, -2), (85, -2)]
     route_len = _rlen(route)
     min_gap = 7.0
     max_speed = 8.5
 
-    # Başlangıç mesafeleri: ego 3*gap ileriden, ajanlar sıralı
+    # Initial distances: ego 3*gap ahead, agents in sequence
     ego_dist = 3 * gap
     agent_dists = [2 * gap, 1 * gap, 0.0]
     ego_speed = max_speed
@@ -1627,16 +1627,16 @@ def _gen_fleet_convoy() -> dict:
     for fi in range(total_frames):
         t = fi * dt
 
-        # EGO hız profili: t=7-12 arasında yavaşla (simüle edilmiş trafik yoğunluğu)
+        # EGO speed profile: slow down between t=7-12 (simulated traffic density)
         if 7.0 < t < 12.0:
             target_ego = 2.0
         else:
             target_ego = max_speed
-        # Yumuşak hız geçişi
+        # Smooth speed transition
         ego_speed = 0.88 * ego_speed + 0.12 * target_ego
         ego_dist += ego_speed * dt
 
-        # Ajanlar: önceki aracı takip et, mesafeyi koru
+        # Agents: follow the vehicle ahead, maintain gap
         leader_dists = [ego_dist] + agent_dists
         leader_lens = [9.0, 4.5, 4.5]
         for i in range(3):
@@ -1652,7 +1652,7 @@ def _gen_fleet_convoy() -> dict:
             agent_speeds[i] = max(0.0, agent_speeds[i])
             agent_dists[i] += agent_speeds[i] * dt
 
-        # EGO pozisyonu
+        # EGO position
         ex, ey, eh = _rpos(route, max(0.0, ego_dist))
         vehicles = [{
             "id": "ego",
@@ -1711,32 +1711,32 @@ def _gen_fleet_convoy() -> dict:
 
 
 def _gen_fleet_obstacle() -> dict:
-    """Senaryo 4 — Acil Engel: EGO rotasında statik engel çıkar, durur/geçer."""
+    """Scenario 4 — Emergency Obstacle: a static obstacle appears on EGO's route, it stops/bypasses."""
     dt = 0.1
     total_time = 22.0
     total_frames = int(total_time / dt)
 
-    # EGO: soldan sağa, x=-5'te engel var, t=10 sonra geçiş yolu açılır
-    # Rotayı 25m uzatarak agent_1'in geride başlamasını sağla
+    # EGO: left to right, obstacle at x=-5, bypass route opens after t=10
+    # Route extended by 25m so agent_1 starts behind
     ego_route_phase1 = [(-110, 0), (-85, 0), (-10, 0)]
     ego_route_bypass = [(-10, 0), (-5, 5), (10, 5), (20, 0), (85, 0)]
     OBSTACLE_CLEAR_T = 10.0  # engel bu t'den sonra yok
 
     ego_speed = 7.5
     ego_state = "approaching"  # approaching → waiting → bypassing → moving
-    ego_dist_p1 = 25.0  # ego rotanın 25m ilerisinden başlar (agent_1'in başlangıç noktasının önünde)
+    ego_dist_p1 = 25.0  # ego starts 25m ahead on the route (in front of agent_1's start point)
     ego_dist_bp = 0.0
     ego_phase = 1
     ego_rlen_p1 = _rlen(ego_route_phase1)
 
-    # Agent 1: EGO'nun 25m gerisinde başlar (rota başlangıcından)
-    a1_dist = 0.0  # rotanın başından başlar, ego 25m ileride
+    # Agent 1: starts 25m behind EGO (from the route start)
+    a1_dist = 0.0  # starts from the beginning of the route, ego is 25m ahead
     a1_speed = 0.0
     max_speed = 7.5
     min_gap = 8.0
     gap = 20.0
 
-    # Sabit engel: x=0, y=0 (t < OBSTACLE_CLEAR_T arasında görünür)
+    # Static obstacle: x=0, y=0 (visible for t < OBSTACLE_CLEAR_T)
     OBSTACLE_X, OBSTACLE_Y = 0.0, 0.0
 
     frames = []
@@ -1745,9 +1745,9 @@ def _gen_fleet_obstacle() -> dict:
         t = fi * dt
         obstacle_active = t < OBSTACLE_CLEAR_T
 
-        # ── EGO hareketi ──────────────────────────────────────────────────────
+        # ── EGO movement ──────────────────────────────────────────────────────
         if ego_phase == 1:
-            # Faz 1: engele yaklaşıyor
+            # Phase 1: approaching obstacle
             dist_to_obs = math.hypot(
                 ego_route_phase1[-1][0] - OBSTACLE_X,
                 ego_route_phase1[-1][1] - OBSTACLE_Y
@@ -1769,7 +1769,7 @@ def _gen_fleet_obstacle() -> dict:
             ex, ey, eh = _rpos(ego_route_phase1, min(ego_dist_p1, ego_rlen_p1))
 
         else:
-            # Faz 2: bypass yoluyla geçiyor
+            # Phase 2: bypassing via alternate route
             bp_len = _rlen(ego_route_bypass)
             ego_speed = min(max_speed, ego_speed + 0.5)
             ego_dist_bp = min(bp_len, ego_dist_bp + ego_speed * dt)
@@ -1793,7 +1793,7 @@ def _gen_fleet_obstacle() -> dict:
 
         a1x, a1y, a1h = _rpos(ego_route_phase1, max(0.0, min(a1_dist, ego_rlen_p1)))
 
-        # ── Engel aracı (görünür veya gizli) ──────────────────────────────────
+        # ── Obstacle vehicle (visible or hidden) ──────────────────────────────
         vehicles = [{
             "id": "ego",
             "x": round(ex, 3),
@@ -1856,11 +1856,11 @@ def _gen_fleet_obstacle() -> dict:
 
 
 def _gen_fleet_heavy_traffic() -> dict:
-    """Senaryo 5 — Yoğun Trafik: 5 ajan + EGO, çapraz kavşak, koordinatör yönetir."""
+    """Scenario 5 — Heavy Traffic: 5 agents + EGO, cross intersection, coordinator manages."""
     dt = 0.1
     total_time = 25.0
 
-    # Çapraz kavşak — farklı önceliklerde 5 ajan
+    # Cross intersection — 5 agents with different priorities
     vehicles = [
         {
             "id": "ego",
@@ -1918,10 +1918,10 @@ def _gen_fleet_heavy_traffic() -> dict:
     }
 
 
-# ── Stabil Senaryo Yardımcıları ───────────────────────────────────────────────
+# ── Stable Scenario Helpers ───────────────────────────────────────────────────
 
 def _generate_stable_scenario(scenario_id: str) -> dict:
-    """Stabil senaryo yönlendirici."""
+    """Stable scenario dispatcher."""
     generators = {
         "stable_parallel":   _gen_stable_parallel,
         "stable_sequential": _gen_stable_sequential,
@@ -1936,7 +1936,7 @@ def _generate_stable_scenario(scenario_id: str) -> dict:
 
 
 def _stable_frame_seq(vehicles_cfg: list, dt: float, total_time: float) -> list:
-    """Stabil senaryo frame üretici — her araç sabit rota üzerinde ilerler, çarpışma kontrolü yok."""
+    """Stable scenario frame generator — each vehicle advances along a fixed route, no collision check."""
     total_frames = int(total_time / dt)
     frames = []
     for fi in range(total_frames):
@@ -1967,10 +1967,10 @@ def _stable_frame_seq(vehicles_cfg: list, dt: float, total_time: float) -> list:
 
 
 def _gen_stable_parallel() -> dict:
-    """Senaryo A — Paralel Yollar: 3 paralel şerit, çarpışma geometrik olarak imkansız."""
+    """Scenario A — Parallel Roads: 3 parallel lanes, collision geometrically impossible."""
     dt = 0.1
     total_time = 20.0
-    road_hw = 12.0  # her iki yönde geniş şerit
+    road_hw = 12.0  # wide lane in both directions
 
     vehicles_cfg = [
         {"id": "ego",     "route": [(-70, 0), (70, 0)],   "speed": 7.0, "length": 9.0, "width": 4.0},
@@ -2010,25 +2010,25 @@ def _gen_stable_parallel() -> dict:
 
 
 def _gen_stable_sequential() -> dict:
-    """Senaryo B — Sıralı Geçiş: her araç kavşakta yalnız, çarpışma geometrik olarak imkansız."""
+    """Scenario B — Sequential Pass: each vehicle is alone at the intersection, collision geometrically impossible."""
     dt = 0.1
     total_time = 40.0
     rw = 8.0
 
-    # EGO: tamamen yatay, kavşak merkezinden (x=0) geçip y=-4 şeridinde ilerler
+    # EGO: fully horizontal, passes through intersection center (x=0) in the y=-4 lane
     ego_route = [(-70, -4), (70, -4)]
     ego_speed = 7.0
     ego_rlen = _rlen(ego_route)
-    # EGO x=0'ı geçme zamanı: (70/140)*140/7 ≈ 5s, tamamen çıkma: 140/7 ≈ 20s
+    # EGO time to pass x=0: (70/140)*140/7 ≈ 5s, fully clear: 140/7 ≈ 20s
 
-    # Agent1: t=22s'de başlar (EGO çıktıktan 2s sonra), yatay karşı yön
+    # Agent1: starts at t=22s (2s after EGO clears), horizontal opposite direction
     a1_route = [(70, 4), (-70, 4)]
     a1_speed = 6.0
     a1_delay = 22.0
     a1_rlen = _rlen(a1_route)
 
-    # Agent2: t=32s'de başlar (Agent1 kavşak bölgesini 32s'de terk eder), dikey
-    # Agent1 x=0'ı terk etme zamanı: 22 + 70/6 ≈ 33.7s → 34s'den sonra güvenli
+    # Agent2: starts at t=32s (Agent1 clears the intersection zone at ~32s), vertical
+    # Agent1 time to leave x=0: 22 + 70/6 ≈ 33.7s → safe after 34s
     a2_route = [(0, -60), (0, 60)]
     a2_speed = 5.5
     a2_delay = 36.0
@@ -2081,16 +2081,16 @@ def _gen_stable_sequential() -> dict:
 
 
 def _gen_stable_convoy() -> dict:
-    """Senaryo C — Konvoy: EGO önde, ajanlar sabit 25m mesafede takip eder."""
+    """Scenario C — Convoy: EGO in front, agents follow at a fixed 25m spacing."""
     dt = 0.1
     total_time = 20.0
-    # Yeterince uzun rota — her araç farklı başlangıç noktasında
+    # Long enough route — each vehicle at a different starting point
     route = [(-120, 0), (70, 0)]
     route_len = _rlen(route)  # 190m
     speed = 7.0
-    gap = 25.0  # araçlar arası mesafe (merkez-merkez)
+    gap = 25.0  # inter-vehicle distance (center-to-center)
 
-    # Başlangıç mesafeleri: EGO rota üzerinde 50m ileriden başlar
+    # Initial distances: EGO starts 50m ahead on the route
     ego_s0 = 50.0   # x = -120+50 = -70
     a1_s0 = 25.0    # x = -120+25 = -95
     a2_s0 = 0.0     # x = -120
@@ -2138,10 +2138,10 @@ def _gen_stable_convoy() -> dict:
 
 
 def _gen_stable_opposite() -> dict:
-    """Senaryo D — Karşılıklı Güvenli Geçiş: geniş yol, 16m şerit ayrımı."""
+    """Scenario D — Safe Mutual Passing: wide road, 16m lane separation."""
     dt = 0.1
     total_time = 20.0
-    road_hw = 14.0  # 28m toplam genişlik
+    road_hw = 14.0  # 28m total width
 
     vehicles_cfg = [
         {"id": "ego",     "route": [(-75, 8), (75, 8)],  "speed": 7.0, "length": 9.0, "width": 4.0},
@@ -2181,20 +2181,20 @@ def _gen_stable_opposite() -> dict:
 
 
 def _gen_stable_fleet() -> dict:
-    """Senaryo E — Filo Koordinasyonu: 5 araç, her biri kavşakta yalnız."""
+    """Scenario E — Fleet Coordination: 5 vehicles, each alone at the intersection."""
     dt = 0.1
     total_time = 50.0
     rw = 8.0
 
-    # EGO önce geçer (öncelik 1)
-    # Her araç bir önceki kavşak geçiş süresi + 6s sonra başlar
+    # EGO passes first (priority 1)
+    # Each vehicle starts 6s after the previous one clears the intersection
     delays = [0.0, 8.0, 14.0, 20.0, 26.0]
     routes = [
-        [(-70, -4), (70, -4)],       # EGO: soldan sağa
-        [(4, -70), (4, 70)],          # Agent 1: aşağıdan yukarı
-        [(70, 4), (-70, 4)],          # Agent 2: sağdan sola
-        [(-4, 70), (-4, -70)],        # Agent 3: yukarıdan aşağı
-        [(-70, -12), (70, -12)],      # Agent 4: soldan sağa, farklı şerit
+        [(-70, -4), (70, -4)],       # EGO: left to right
+        [(4, -70), (4, 70)],          # Agent 1: bottom to top
+        [(70, 4), (-70, 4)],          # Agent 2: right to left
+        [(-4, 70), (-4, -70)],        # Agent 3: top to bottom
+        [(-70, -12), (70, -12)],      # Agent 4: left to right, different lane
     ]
     ids = ["ego", "agent_1", "agent_2", "agent_3", "agent_4"]
     speeds = [7.0, 6.0, 6.5, 6.0, 5.5]
@@ -2239,10 +2239,10 @@ def _gen_stable_fleet() -> dict:
     }
 
 
-# ── Faza E — Genişletilmiş Senaryo Üreticisi ─────────────────────────────────
+# ── Phase E — Extended Scenario Generator ────────────────────────────────────
 
 def _generate_extended_scenario(scenario_id: str) -> dict:
-    """Faza E genişletilmiş senaryo yönlendirici."""
+    """Phase E extended scenario dispatcher."""
     meta = next((s for s in EXTENDED_SCENARIOS if s["id"] == scenario_id), None)
     if meta is None:
         return generate_rich_demo_frames(scenario_id, 3, "T")
@@ -2253,30 +2253,30 @@ def _generate_extended_scenario(scenario_id: str) -> dict:
     total_time = 60.0 if scenario_id == "ext_full_fleet" else max(30.0, agent_count * 7.0)
     dt = 0.1
 
-    # Yük ve eğim bazlı hız hesapla
-    # Eğim etkisi: yokuş yukarı hız azalır, yokuş aşağı fren uzar
+    # Calculate speed based on load and grade
+    # Grade effect: speed decreases uphill, braking distance increases downhill
     grade_speed_factor = max(0.3, 1.0 - max(grade, 0) * 0.03)
-    ego_base_speed = 8.9 * grade_speed_factor  # Tam yüklü kamyon hızı (m/s)
+    ego_base_speed = 8.9 * grade_speed_factor  # Fully loaded truck speed (m/s)
     agent_base_speed = 7.5 * max(0.4, 1.0 - abs(grade) * 0.02)
 
-    # Dar geçit senaryosu için özel yol geometrisi
+    # Special road geometry for the narrow pass scenario
     if scenario_id == "ext_narrow_pass":
         return _gen_ext_narrow_pass(dt, total_time, grade)
 
-    # Acil duraksama
+    # Emergency stop
     if scenario_id == "ext_emergency_stop":
         return _gen_ext_emergency_stop(dt, grade)
 
-    # Rampalı yükleme
+    # Loading ramp
     if scenario_id == "ext_loading_ramp":
         return _gen_ext_loading_ramp(dt, total_time, grade)
 
-    # Sis kavşağı
+    # Fog intersection
     if scenario_id == "ext_fog_intersection":
         return _gen_ext_fog_intersection(dt, total_time)
 
-    # Genel senaryo için mevcut generate_rich_demo_frames kullan
-    # Hız seçimi: yük ve eğime göre
+    # Use existing generate_rich_demo_frames for general scenarios
+    # Speed selection: based on load and grade
     speed_type = scenario_type
     if scenario_type == "intersection":
         speed_type = "T"
@@ -2293,7 +2293,7 @@ def _generate_extended_scenario(scenario_id: str) -> dict:
     result["grade"] = grade
     result["source"] = "extended"
 
-    # Yokuş yukarı: EGO ve ajanların hızını düşür
+    # Uphill: reduce speed of EGO and agents
     if grade != 0 and "frames" in result:
         spd_factor = grade_speed_factor if grade > 0 else min(1.0 + abs(grade) * 0.015, 1.2)
         for frame in result["frames"]:
@@ -2304,16 +2304,16 @@ def _generate_extended_scenario(scenario_id: str) -> dict:
 
 
 def _gen_ext_narrow_pass(dt: float, total_time: float, grade: int) -> dict:
-    """Dar Geçit Koordinasyonu — tek şeritli yol, bekleme cebi."""
+    """Narrow Pass Coordination — single-lane road, waiting bay."""
     total_frames = int(total_time / dt)
 
-    # EGO: soldan sağa, bekleme cebine girip karşıdan geleni geçirir
+    # EGO: left to right, pulls into waiting bay to let oncoming vehicle pass
     ego_route = [
         (-75, -2, 7.0), (-40, -2, 6.0), (-20, -2, 3.0),
-        (-20, -8, 2.0),  # Bekleme cebine gir
-        (-20, -8, 0.0),  # Bekle
+        (-20, -8, 2.0),  # Enter waiting bay
+        (-20, -8, 0.0),  # Wait
         (-20, -8, 0.0),
-        (-20, -2, 2.0),  # Geri rota
+        (-20, -2, 2.0),  # Return to route
         (0, -2, 5.0), (35, -2, 7.0), (75, -2, 7.5),
     ]
     agent1_route = [
@@ -2352,7 +2352,7 @@ def _gen_ext_narrow_pass(dt: float, total_time: float, grade: int) -> dict:
     road_geom = _make_demo_road_geometry("straight", 5.0)
     road_geom["grade"] = grade
     road_geom["grade_label"] = f"↘ {grade}%" if grade < 0 else "→ 0%"
-    # Bekleme cebi polygon
+    # Waiting bay polygon
     road_geom["drivable_polygons"].append({
         "type": "road",
         "points": [{"x": -28, "y": -14}, {"x": -12, "y": -14}, {"x": -12, "y": -5}, {"x": -28, "y": -5}],
@@ -2367,18 +2367,18 @@ def _gen_ext_narrow_pass(dt: float, total_time: float, grade: int) -> dict:
 
 
 def _gen_ext_emergency_stop(dt: float, grade: int) -> dict:
-    """Acil Duraksama — t=5s'de kaya düşer, EGO frenler."""
+    """Emergency Stop — a rock falls at t=5s, EGO brakes."""
     total_time = 25.0
     total_frames = int(total_time / dt)
     obstacle_appear_frame = 50  # t=5s
 
     grade_brake_factor = 1.0 + abs(grade) * 0.08 if grade < 0 else 1.0
-    brake_dist = 45.0 * grade_brake_factor  # ~45m frenleme mesafesi
+    brake_dist = 45.0 * grade_brake_factor  # ~45m braking distance
 
     ego_route = [
         (-75, -2, 0.0), (-30, -2, 12.0), (-10, -2, 12.0),
-        (5, -2, 8.0), (10, -2, 3.0), (12, -2, 0.0),  # Fren
-        (12, -2, 0.0), (12, -2, 0.0),  # Bekle
+        (5, -2, 8.0), (10, -2, 3.0), (12, -2, 0.0),  # Brake
+        (12, -2, 0.0), (12, -2, 0.0),  # Wait
     ]
 
     frames = []
@@ -2395,7 +2395,7 @@ def _gen_ext_emergency_stop(dt: float, grade: int) -> dict:
              "speed": round(max(0.0, es), 2), "length": 9.0, "width": 4.0},
         ]
 
-        # Kaya t=5s'den sonra belirir
+        # Rock appears after t=5s
         if fi >= obstacle_appear_frame:
             braking = True
             vehicles.append({
@@ -2420,18 +2420,18 @@ def _gen_ext_emergency_stop(dt: float, grade: int) -> dict:
 
 
 def _gen_ext_loading_ramp(dt: float, total_time: float, grade: int) -> dict:
-    """Rampalı Yükleme — EGO boş gidip platformda yükleniyor."""
+    """Loading Ramp — EGO drives empty to the platform and gets loaded."""
     total_frames = int(total_time / dt)
     load_start_frame = int(total_frames * 0.35)
     load_end_frame = int(total_frames * 0.55)
 
     ego_route = [
         (-75, -2, 0.0), (-30, -2, 8.0),
-        (0, 0, 4.0), (20, 5, 3.0),  # Rampa
-        (40, 5, 0.0),  # Platform — yükleniyor
+        (0, 0, 4.0), (20, 5, 3.0),  # Ramp
+        (40, 5, 0.0),  # Platform — loading
         (40, 5, 0.0),
-        (20, 5, 3.0), (0, 0, 4.0),  # İniş
-        (-30, -2, 7.0), (-75, -2, 8.0),  # Dönüş
+        (20, 5, 3.0), (0, 0, 4.0),  # Descent
+        (-30, -2, 7.0), (-75, -2, 8.0),  # Return
     ]
     a1_route = [
         (75, 2, 7.5), (40, 2, 6.0), (20, 5, 3.0), (0, 0, 4.0), (-30, -2, 7.0), (-75, -2, 7.5),
@@ -2448,7 +2448,7 @@ def _gen_ext_loading_ramp(dt: float, total_time: float, grade: int) -> dict:
     step = 1.0 / (total_frames - 1) if total_frames > 1 else 1.0
 
     for fi in range(total_frames):
-        # EGO platform'da bekliyor
+        # EGO waiting at platform
         if load_start_frame <= fi <= load_end_frame:
             ego_prog_step = 0.0
         else:
@@ -2476,7 +2476,7 @@ def _gen_ext_loading_ramp(dt: float, total_time: float, grade: int) -> dict:
     road_geom = _make_demo_road_geometry("straight", 7.0)
     road_geom["grade"] = grade
     road_geom["grade_label"] = f"↗ +{grade}%" if grade > 0 else "→ 0%"
-    # Platform polygon (sarımsı)
+    # Platform polygon (yellowish)
     road_geom["drivable_polygons"].append({
         "type": "loading",
         "points": [{"x": 28, "y": 1}, {"x": 55, "y": 1}, {"x": 55, "y": 12}, {"x": 28, "y": 12}],
@@ -2491,7 +2491,7 @@ def _gen_ext_loading_ramp(dt: float, total_time: float, grade: int) -> dict:
 
 
 def _gen_ext_fog_intersection(dt: float, total_time: float) -> dict:
-    """Sis Kavşağı — araçlar birbirini ancak 20m yakında görüyor."""
+    """Fog Intersection — vehicles see each other only within 20m."""
     total_frames = int(total_time / dt)
     visibility_radius = 20.0
 

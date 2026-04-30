@@ -74,7 +74,7 @@ export default function ScenarioGenerator() {
         {tr.scenarioGenerator.title}
       </h2>
 
-      {/* Kavşak Tipi */}
+      {/* Intersection Type */}
       <div>
         <p className="text-xs text-slate-400 mb-1.5">{tr.scenarioGenerator.intersectionType}</p>
         <div className="grid grid-cols-4 gap-1.5">
@@ -95,7 +95,7 @@ export default function ScenarioGenerator() {
         </div>
       </div>
 
-      {/* Araç Sayısı */}
+      {/* Vehicle Count */}
       <div>
         <div className="flex justify-between items-center mb-1">
           <p className="text-xs text-slate-400">{tr.scenarioGenerator.vehicleCount}</p>
@@ -115,7 +115,7 @@ export default function ScenarioGenerator() {
         </div>
       </div>
 
-      {/* Zorluk */}
+      {/* Difficulty */}
       <div>
         <p className="text-xs text-slate-400 mb-1.5">{tr.scenarioGenerator.difficulty}</p>
         <div className="grid grid-cols-4 gap-1.5">
@@ -135,7 +135,7 @@ export default function ScenarioGenerator() {
         </div>
       </div>
 
-      {/* Özel Koşul */}
+      {/* Special Condition */}
       <div>
         <p className="text-xs text-slate-400 mb-1.5">{tr.scenarioGenerator.specialCondition}</p>
         <div className="grid grid-cols-2 gap-1.5">
@@ -155,7 +155,7 @@ export default function ScenarioGenerator() {
         </div>
       </div>
 
-      {/* Senaryo Adı */}
+      {/* Scenario Name */}
       <div>
         <p className="text-xs text-slate-400 mb-1">{tr.scenarioGenerator.scenarioName}</p>
         <input
@@ -167,7 +167,7 @@ export default function ScenarioGenerator() {
         />
       </div>
 
-      {/* Üret butonu */}
+      {/* Generate button */}
       <button
         onClick={handleGenerate}
         disabled={generating}
@@ -176,7 +176,7 @@ export default function ScenarioGenerator() {
         {generating ? tr.scenarioGenerator.generating : tr.scenarioGenerator.generate}
       </button>
 
-      {/* Sonuç mesajı */}
+      {/* Result message */}
       {result && (
         <div
           className={`text-xs px-2 py-1.5 rounded ${

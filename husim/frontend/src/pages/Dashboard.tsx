@@ -66,12 +66,12 @@ export default function Dashboard() {
       {/* Ana Grid — Normal veya Sunum Modu */}
       {presentationMode ? (
         <div className="flex-1 grid grid-cols-[1fr_300px] gap-2 p-2 min-h-0 overflow-hidden">
-          {/* Orta: Büyük simülasyon */}
+          {/* Center: Large simulation */}
           <div className="flex flex-col gap-2 min-h-0">
             <SimulationViewer />
             <ScenarioSelector />
           </div>
-          {/* Sağ: Büyük metrikler */}
+          {/* Right: Large metrics */}
           <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
             <MetricsPanel />
             <AlertPanel />
@@ -79,7 +79,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="flex-1 grid grid-cols-[272px_1fr_256px] gap-2 p-2 min-h-0 overflow-hidden">
-          {/* Sol Sütun: Hava + Yük + Rapor */}
+          {/* Left Column: Weather + Load + Report */}
           <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
             <div className="flex-[2] min-h-0 overflow-y-auto">
               <WeatherPanel />
@@ -90,9 +90,9 @@ export default function Dashboard() {
             <ReportPanel />
           </div>
 
-          {/* Orta Sütun: Sekmeli */}
+          {/* Center Column: Tabbed */}
           <div className="flex flex-col gap-0 min-h-0">
-            {/* Sekme başlıkları */}
+            {/* Tab headers */}
             <div className="flex gap-0.5 px-1 pt-1">
               <button className={tabClass('viewer')} onClick={() => setCenterTab('viewer')}>
                 Simülasyon
@@ -105,7 +105,7 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Sekme içerikleri */}
+            {/* Tab contents */}
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
               {centerTab === 'viewer' && (
                 <>
@@ -127,7 +127,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Sağ Sütun: Metrikler + Filo + Olaylar + Uyarılar */}
+          {/* Right Column: Metrics + Fleet + Events + Alerts */}
           <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
             <div className="flex-shrink-0">
               <MetricsPanel />

@@ -1,4 +1,4 @@
-"""Simülasyon metrik hesaplama servisi"""
+"""Simulation metric calculation service"""
 import math
 import logging
 from models import SimulationMetrics
@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 def compute_metrics(frames: list[dict], algorithm_name: str = "") -> SimulationMetrics:
     """
-    Frame listesinden tüm metrikleri hesapla.
-    Her frame: {"frame": int, "time": float, "vehicles": [...], "completed": bool}
+    Compute all metrics from the frame list.
+    Each frame: {"frame": int, "time": float, "vehicles": [...], "completed": bool}
     """
     if not frames:
         return SimulationMetrics(algorithm_name=algorithm_name)
@@ -42,11 +42,11 @@ def compute_metrics(frames: list[dict], algorithm_name: str = "") -> SimulationM
             elif dist < 2.0:
                 near_miss_count += 1
 
-    # Hız istatistikleri
+    # Speed statistics
     speeds = [s["speed"] for s in ego_states if "speed" in s]
     avg_speed = sum(speeds) / len(speeds) if speeds else 0
 
-    # İvme hesabı (delta_v / delta_t)
+    # Acceleration calculation (delta_v / delta_t)
     accelerations = []
     for i in range(1, len(ego_states)):
         dv = ego_states[i]["speed"] - ego_states[i - 1]["speed"]
@@ -57,7 +57,7 @@ def compute_metrics(frames: list[dict], algorithm_name: str = "") -> SimulationM
     max_accel = max((a for a in accelerations if a > 0), default=0.0)
     max_decel = abs(min((a for a in accelerations if a < 0), default=0.0))
 
-    # Direksiyon yumuşaklığı (heading değişim varyansı)
+    # Steering smoothness (heading change variance)
     headings = [s.get("heading", 0) for s in ego_states]
     heading_changes = [abs(headings[i] - headings[i - 1]) for i in range(1, len(headings))]
     if heading_changes:
@@ -67,7 +67,7 @@ def compute_metrics(frames: list[dict], algorithm_name: str = "") -> SimulationM
     else:
         smoothness = 1.0
 
-    # Güzergah verimliliği (doğrusal mesafe / gerçek mesafe)
+    # Path efficiency (straight-line distance / actual distance)
     if len(ego_states) > 1:
         straight_dist = math.hypot(
             ego_states[-1]["x"] - ego_states[0]["x"],

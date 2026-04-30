@@ -1,4 +1,4 @@
-"""MineSim-Dynamic subprocess wrapper — senaryo çalıştırıcı"""
+"""MineSim-Dynamic subprocess wrapper — scenario runner"""
 import sys
 import json
 import asyncio
@@ -11,7 +11,7 @@ import scenario_loader
 
 logger = logging.getLogger(__name__)
 
-# MineSim-Dynamic'in gerçek yolu — birden fazla olası konumu dene
+# Real path of MineSim-Dynamic — try multiple candidate locations
 BASE_DIR = Path(__file__).parent.parent.parent
 _CANDIDATE_PATHS = [
     BASE_DIR / "MineSim-Dynamic-main" / "MineSim-Dynamic-main",
@@ -27,13 +27,13 @@ DEVKIT_PATH = MINESIM_PATH / "devkit"
 DEMO_MODE = not INPUTS_PATH.exists()
 
 if DEMO_MODE:
-    logger.warning(f"MineSim-Dynamic inputs klasörü bulunamadı ({MINESIM_PATH}) — DEMO modunda çalışıyor.")
+    logger.warning(f"MineSim-Dynamic inputs folder not found ({MINESIM_PATH}) — running in DEMO mode.")
 else:
-    logger.info(f"MineSim-Dynamic bulundu: {MINESIM_PATH}")
+    logger.info(f"MineSim-Dynamic found: {MINESIM_PATH}")
 
 
 def get_available_scenarios() -> list[dict]:
-    """Kullanılabilir senaryoları listele."""
+    """List available scenarios."""
     if DEMO_MODE:
         return _demo_scenarios()
 
@@ -51,7 +51,7 @@ def get_available_scenarios() -> list[dict]:
                 "demo": False,
             })
         except Exception as e:
-            logger.error(f"Senaryo okunamadı {f}: {e}")
+            logger.error(f"Scenario could not be read {f}: {e}")
     return scenarios
 
 
@@ -89,8 +89,8 @@ async def run_scenario(
     frame_callback=None,
 ) -> SimulationMetrics:
     """
-    Senaryoyu çalıştır. MineSim-Dynamic mevcutsa Python modülü olarak import eder,
-    yoksa demo verisi üretir.
+    Run the scenario. Imports MineSim-Dynamic as a Python module if available,
+    otherwise generates demo data.
     """
     if DEMO_MODE or scenario_id.startswith("demo_"):
         return await _run_demo(simulation_id, scenario_id, optimized_params, algorithm, frame_callback)
@@ -105,32 +105,32 @@ async def _run_minesim(
     algorithm: str,
     frame_callback,
 ) -> SimulationMetrics:
-    """MineSim-Dynamic senaryo yükleyiciyi kullanarak simülasyon çalıştır."""
+    """Run simulation using the MineSim-Dynamic scenario loader."""
     try:
         scenario_file = INPUTS_PATH / f"Scenario-{scenario_id}.json"
         if not scenario_file.exists():
-            logger.error(f"Senaryo dosyası bulunamadı: {scenario_file}")
+            logger.error(f"Scenario file not found: {scenario_file}")
             return await _run_demo(simulation_id, scenario_id, optimized_params, algorithm, frame_callback)
 
         data = scenario_loader.load_scenario_frames(scenario_id, str(scenario_file))
         frames = data.get("frames", [])
 
         if not frames:
-            logger.error(f"Frame listesi boş: {scenario_id}")
+            logger.error(f"Frame list is empty: {scenario_id}")
             return await _run_demo(simulation_id, scenario_id, optimized_params, algorithm, frame_callback)
 
-        # Hız faktörünü uygula
+        # Apply speed factor
         spd_f = optimized_params.max_speed_factor if optimized_params else 1.0
         if spd_f != 1.0:
             for frame in frames:
                 for v in frame.get("vehicles", []):
                     v["speed"] = round(v["speed"] * spd_f, 2)
 
-        logger.info(f"MineSim senaryo yüklendi: {scenario_id}, {len(frames)} frame")
+        logger.info(f"MineSim scenario loaded: {scenario_id}, {len(frames)} frames")
         return await _stream_frames(frames, frame_callback, algorithm)
 
     except Exception as e:
-        logger.error(f"MineSim çalıştırma hatası: {e} — demo moduna geçiliyor")
+        logger.error(f"MineSim execution error: {e} — falling back to demo mode")
         return await _run_demo(simulation_id, scenario_id, optimized_params, algorithm, frame_callback)
 
 
@@ -141,21 +141,21 @@ async def _run_demo(
     algorithm: str,
     frame_callback,
 ) -> SimulationMetrics:
-    """Demo modu — sahte simülasyon verisi üret."""
-    logger.info(f"Demo senaryo çalıştırılıyor: {scenario_id}")
+    """Demo mode — generate synthetic simulation data."""
+    logger.info(f"Running demo scenario: {scenario_id}")
     total_frames = 150
     frames = _generate_demo_frames(total_frames, optimized_params)
     return await _stream_frames(frames, frame_callback, algorithm)
 
 
 def _generate_demo_frames(total_frames: int, params: OptimizedParams) -> list[dict]:
-    """Demo frame listesi üret."""
+    """Generate demo frame list."""
     frames = []
     ego_x, ego_y = 0.0, 0.0
     heading = 0.0
     speed = 8.0 * params.max_speed_factor
 
-    # 3 ajan araç
+    # 3 agent vehicles
     agents = [
         {"id": "agent_0", "x": 30.0, "y": 5.0, "heading": math.pi, "speed": speed * 0.8},
         {"id": "agent_1", "x": 60.0, "y": -3.0, "heading": math.pi * 0.9, "speed": speed * 0.7},
@@ -192,7 +192,7 @@ def _generate_demo_frames(total_frames: int, params: OptimizedParams) -> list[di
 
 
 async def _stream_frames(frames: list[dict], frame_callback, algorithm: str) -> SimulationMetrics:
-    """Frame'leri aktar ve metrikleri hesapla."""
+    """Stream frames and compute metrics."""
     speeds = []
     min_dist = float("inf")
     collisions = 0
@@ -201,7 +201,7 @@ async def _stream_frames(frames: list[dict], frame_callback, algorithm: str) -> 
     for frame_data in frames:
         if frame_callback:
             await frame_callback(frame_data)
-        await asyncio.sleep(0.05)  # ~20 FPS akış
+        await asyncio.sleep(0.05)  # ~20 FPS stream
 
         vehicles = frame_data.get("vehicles", [])
         ego = next((v for v in vehicles if v["id"] == "ego"), None)

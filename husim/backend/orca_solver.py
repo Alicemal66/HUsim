@@ -10,7 +10,7 @@ _EPS = 1e-8
 
 class ORCASolver:
     """
-    ORCA solver: her frame'de tüm araçlar için çarpışmasız hız hesaplar.
+    ORCA solver: computes collision-free velocities for all vehicles each frame.
     """
 
     def __init__(self, time_horizon: float = 5.0, time_step: float = 0.1):
@@ -19,15 +19,15 @@ class ORCASolver:
 
     def compute_new_velocities(self, agents: list) -> list:
         """
-        Tüm araçlar için çarpışmasız yeni hız hesapla.
+        Compute new collision-free velocities for all vehicles.
 
-        agents: Her eleman şu alanları içeren dict:
+        agents: list of dicts with fields:
             id, x, y, vx, vy, pref_vx, pref_vy, radius, max_speed
             Optional: reciprocal (bool, default True)
-                      False ise bu araç kendi yönünü değiştirmez (NPC);
-                      EGO tek başına tüm sorumluluk alır.
+                      If False, this vehicle does not change its direction (NPC);
+                      EGO takes full responsibility alone.
 
-        Döndür: [{id, new_vx, new_vy, new_speed, new_heading}, ...]
+        Returns: [{id, new_vx, new_vy, new_speed, new_heading}, ...]
         """
         results = []
         for i, a in enumerate(agents):
@@ -64,14 +64,14 @@ class ORCASolver:
 
         return results
 
-    # ── ORCA yarı düzlemi ──────────────────────────────────────────────────────
+    # ── ORCA half-plane ───────────────────────────────────────────────────────
 
     def _compute_orca_line(self, a: dict, b: dict, b_reciprocal: bool = True):
         """
-        Agent a için, agent b'ye göre ORCA yarı düzlemini hesapla.
-        Döndür: (point, direction) veya None.
+        Compute the ORCA half-plane for agent a relative to agent b.
+        Returns: (point, direction) or None.
 
-        RVO2 C++ kaynak koduna dayalı implementasyon.
+        Implementation based on the RVO2 C++ source code.
         """
         inv_tau = 1.0 / self.time_horizon
 
@@ -81,17 +81,17 @@ class ORCASolver:
         combined_r = float(a["radius"] + b["radius"])
         combined_r_sq = combined_r * combined_r
 
-        # b reciprocal değilse (NPC, sabit yörüngeli) EGO tam sorumluluk alır
+        # If b is not reciprocal (NPC, fixed trajectory) EGO takes full responsibility
         resp = 0.5 if b_reciprocal else 1.0
 
         if dist_sq > combined_r_sq:
-            # Çakışma yok
+            # No overlap
             w = rel_vel - inv_tau * rel_pos
             w_sq = float(np.dot(w, w))
             dot1 = float(np.dot(w, rel_pos))
 
             if dot1 < 0.0 and dot1 * dot1 > combined_r_sq * w_sq:
-                # Cut-off çemberine project et
+                # Project onto cut-off circle
                 w_len = math.sqrt(max(w_sq, 0.0))
                 if w_len < _EPS:
                     return None
@@ -99,19 +99,19 @@ class ORCASolver:
                 direction = np.array([unit_w[1], -unit_w[0]])
                 u = (combined_r * inv_tau - w_len) * unit_w
             else:
-                # VO konisinin bacaklarına project et
+                # Project onto the legs of the VO cone
                 leg_sq = max(0.0, dist_sq - combined_r_sq)
                 leg = math.sqrt(leg_sq)
                 cross_pw = float(rel_pos[0] * w[1] - rel_pos[1] * w[0])
 
                 if cross_pw > 0.0:
-                    # Sol bacak
+                    # Left leg
                     direction = np.array([
                         rel_pos[0] * leg - rel_pos[1] * combined_r,
                         rel_pos[0] * combined_r + rel_pos[1] * leg,
                     ]) / dist_sq
                 else:
-                    # Sağ bacak
+                    # Right leg
                     direction = -np.array([
                         rel_pos[0] * leg + rel_pos[1] * combined_r,
                         -rel_pos[0] * combined_r + rel_pos[1] * leg,
@@ -120,7 +120,7 @@ class ORCASolver:
                 dot2 = float(np.dot(rel_vel, direction))
                 u = dot2 * direction - rel_vel
         else:
-            # Çakışma var — time_step anında çemberden çık
+            # Overlap — exit the circle within time_step
             inv_ts = 1.0 / self.time_step
             w = rel_vel - inv_ts * rel_pos
             w_len = float(np.linalg.norm(w))
@@ -139,10 +139,10 @@ class ORCASolver:
         point = np.array([a["vx"], a["vy"]]) + resp * u
         return (point, direction)
 
-    # ── Lineer Programlama ─────────────────────────────────────────────────────
+    # ── Linear Programming ────────────────────────────────────────────────────
 
     def _lp1(self, lines, line_no, radius, opt_vel, dir_opt):
-        """Tek bir kısıt üzerinde optimal nokta bul (hız dairesi + önceki kısıtlar)."""
+        """Find the optimal point on a single constraint (speed circle + previous constraints)."""
         lp, ld = lines[line_no]
         dot = float(np.dot(lp, ld))
         disc = dot * dot + radius * radius - float(np.dot(lp, lp))
@@ -179,8 +179,8 @@ class ORCASolver:
 
     def _lp2(self, lines, radius, opt_vel, dir_opt):
         """
-        Tüm ORCA kısıtlarını sağlayan, opt_vel'e en yakın hızı bul.
-        Döndür: (velocity, fail_index) — fail_index == len(lines) ise başarılı.
+        Find the velocity closest to opt_vel that satisfies all ORCA constraints.
+        Returns: (velocity, fail_index) — success if fail_index == len(lines).
         """
         if dir_opt:
             n = float(np.linalg.norm(opt_vel))
@@ -203,7 +203,7 @@ class ORCASolver:
 
     def _lp3(self, lines, num_obs, begin, radius, result):
         """
-        İnfeasible durum: minimum penetrasyonu minimize eden hızı bul.
+        Infeasible case: find the velocity that minimizes penetration.
         """
         distance = 0.0
         for i in range(begin, len(lines)):
@@ -239,15 +239,15 @@ class ORCASolver:
         return result
 
 
-# ── Yardımcı dönüşüm fonksiyonları ───────────────────────────────────────────
+# ── Helper conversion functions ───────────────────────────────────────────────
 
 def heading_to_velocity(heading: float, speed: float) -> tuple:
-    """heading (radyan) ve speed (m/s) → (vx, vy)"""
+    """heading (radians) and speed (m/s) → (vx, vy)"""
     return speed * math.cos(heading), speed * math.sin(heading)
 
 
 def velocity_to_heading(vx: float, vy: float) -> tuple:
-    """(vx, vy) → (heading radyan, speed m/s)"""
+    """(vx, vy) → (heading radians, speed m/s)"""
     speed = math.sqrt(vx * vx + vy * vy)
     heading = math.atan2(vy, vx)
     return heading, speed

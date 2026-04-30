@@ -253,7 +253,7 @@ export default function CompareMode() {
             </div>
           </div>
 
-          {/* Ortak playback kontrolü */}
+          {/* Shared playback controls */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setPlaying(false); setFrameIdx(0) }}

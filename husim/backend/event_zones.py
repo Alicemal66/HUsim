@@ -1,4 +1,4 @@
-"""HÜsim — Olay bölgesi yönetimi (Faza F)"""
+"""HÜsim — Event zone management (Phase F)"""
 import uuid
 import math
 import random

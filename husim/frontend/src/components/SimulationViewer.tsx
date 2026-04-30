@@ -71,7 +71,7 @@ function computeTransform(
   return { scale, offX, offY }
 }
 
-// userZoom ve userPan'ı base transform'a uygula
+// Apply userZoom and userPan to the base transform
 function applyUserTransform(base: Transform, userZoom: number, userPan: { x: number; y: number }): Transform {
   return {
     scale: base.scale * userZoom,
@@ -85,7 +85,7 @@ function toCanvas(x: number, y: number, t: Transform) {
 }
 
 function drawRoads(ctx: CanvasRenderingContext2D, geom: any, t: Transform, ch: number) {
-  // Katman 2 — drivable_polygons varsa MineSim tarzı çiz
+  // Layer 2 — draw MineSim-style if drivable_polygons exist
   if (geom?.drivable_polygons?.length) {
     for (const poly of geom.drivable_polygons) {
       if (!poly.points?.length) continue
@@ -108,7 +108,7 @@ function drawRoads(ctx: CanvasRenderingContext2D, geom: any, t: Transform, ch: n
       ctx.stroke()
     }
 
-    // Katman 3 — centerlines
+    // Layer 3 — centerlines
     for (const cl of geom.centerlines ?? []) {
       if (!cl.points?.length) continue
       const pts = cl.points.map((p: any) => toCanvas(p.x, p.y, t))
@@ -129,7 +129,7 @@ function drawRoads(ctx: CanvasRenderingContext2D, geom: any, t: Transform, ch: n
       ctx.setLineDash([])
     }
   } else if (geom?.segments) {
-    // Fallback: eski segment tarzı
+    // Fallback: old segment style
     for (const seg of geom.segments) {
       const { cx: x1, cy: y1 } = toCanvas(seg.from.x, seg.from.y, t)
       const { cx: x2, cy: y2 } = toCanvas(seg.to.x, seg.to.y, t)
@@ -153,7 +153,7 @@ function drawRoads(ctx: CanvasRenderingContext2D, geom: any, t: Transform, ch: n
     }
     ctx.setLineDash([])
   } else {
-    // Hiç geometri yok
+    // No geometry at all
     ctx.strokeStyle = '#3d3d3d'
     ctx.lineWidth = 32
     ctx.lineCap = 'round'
@@ -199,10 +199,10 @@ function drawRoads(ctx: CanvasRenderingContext2D, geom: any, t: Transform, ch: n
 }
 
 function speedToColor(speed: number): string {
-  if (speed < 2) return '#3b82f6'   // düşük hız — mavi
-  if (speed < 5) return '#8b5cf6'   // orta hız — mor
-  if (speed < 8) return '#f97316'   // yüksek hız — turuncu
-  return '#ef4444'                  // çok yüksek hız — kırmızı
+  if (speed < 2) return '#3b82f6'   // low speed — blue
+  if (speed < 5) return '#8b5cf6'   // medium speed — purple
+  if (speed < 8) return '#f97316'   // high speed — orange
+  return '#ef4444'                  // very high speed — red
 }
 
 function drawNorthArrow(ctx: CanvasRenderingContext2D, cw: number, userZoom: number) {
@@ -216,7 +216,7 @@ function drawNorthArrow(ctx: CanvasRenderingContext2D, cw: number, userZoom: num
   ctx.arc(x, y, 26, 0, Math.PI * 2)
   ctx.fill()
 
-  // N ok (yukarı)
+  // N arrow (up)
   ctx.strokeStyle = '#e2e8f0'
   ctx.lineWidth = 2
   ctx.lineCap = 'round'
@@ -237,7 +237,7 @@ function drawNorthArrow(ctx: CanvasRenderingContext2D, cw: number, userZoom: num
   ctx.textBaseline = 'middle'
   ctx.fillText('N', x, y - arrowLen / 2 - 8)
 
-  // E (sağa)
+  // E (right)
   ctx.strokeStyle = 'rgba(200,210,220,0.6)'
   ctx.lineWidth = 1.2
   ctx.beginPath()
@@ -248,7 +248,7 @@ function drawNorthArrow(ctx: CanvasRenderingContext2D, cw: number, userZoom: num
   ctx.font = '8px sans-serif'
   ctx.fillText('E', x + arrowLen / 2 + 7, y)
 
-  // Zoom göstergesi
+  // Zoom indicator
   ctx.fillStyle = 'rgba(148,163,184,0.85)'
   ctx.font = '9px monospace'
   ctx.textAlign = 'center'
@@ -405,7 +405,7 @@ function drawVehicle(
   ctx.shadowBlur = 0
 
   if (!isObstacle) {
-    // Ön kısım — daha parlak renk (farlar)
+    // Front section — brighter color (headlights)
     const frontW = Math.min(6, L * 0.20)
     const frontColor = isEgo ? 'rgba(255,240,180,0.95)' : 'rgba(180,220,255,0.85)'
     ctx.fillStyle = frontColor
@@ -413,22 +413,22 @@ function drawVehicle(
     ctx.roundRect(L / 2 - frontW, -W / 2 + 2, frontW, W - 4, 1)
     ctx.fill()
 
-    // Arka kısım — kırmızımsı (stop ışıkları)
+    // Rear section — reddish (brake lights)
     const rearW = Math.min(4, L * 0.12)
     ctx.fillStyle = isEgo ? 'rgba(220,50,50,0.7)' : 'rgba(180,50,50,0.5)'
     ctx.beginPath()
     ctx.roundRect(-L / 2, -W / 2 + 3, rearW, W - 6, 1)
     ctx.fill()
 
-    // Tekerlekler — 4 köşede siyah dikdörtgenler
+    // Wheels — black rectangles at 4 corners
     const wheelW = Math.max(3, L * 0.10)
     const wheelH = Math.max(3, W * 0.22)
     ctx.fillStyle = '#111'
     const wheelPositions = [
-      { x: L / 2 - wheelW - 1, y: -W / 2 },          // sağ ön
-      { x: L / 2 - wheelW - 1, y: W / 2 - wheelH },  // sağ arka
-      { x: -L / 2 + 1, y: -W / 2 },                  // sol ön
-      { x: -L / 2 + 1, y: W / 2 - wheelH },           // sol arka
+      { x: L / 2 - wheelW - 1, y: -W / 2 },          // front right
+      { x: L / 2 - wheelW - 1, y: W / 2 - wheelH },  // rear right
+      { x: -L / 2 + 1, y: -W / 2 },                  // front left
+      { x: -L / 2 + 1, y: W / 2 - wheelH },           // rear left
     ]
     for (const wp of wheelPositions) {
       ctx.beginPath()
@@ -436,7 +436,7 @@ function drawVehicle(
       ctx.fill()
     }
 
-    // Yön oku — kalın ve belirgin
+    // Direction arrow — thick and visible
     const arrowStart = -L * 0.25
     const arrowEnd = L / 2 - frontW - 4
     ctx.strokeStyle = 'rgba(255,255,255,0.70)'
@@ -484,7 +484,7 @@ function drawVehicle(
     ctx.restore()
   }
 
-  // Motor sıcaklığı göstergesi
+  // Engine temperature indicator
   if (!isObstacle && v.engine_temp != null) {
     const temp: number = v.engine_temp
     const status: string = v.engine_status ?? 'normal'
@@ -500,7 +500,7 @@ function drawVehicle(
     ctx.textBaseline = 'bottom'
 
     if (status === 'acil_durdurma') {
-      // Kırmızı flash efekti — Math.sin kullanarak
+      // Red flash effect — using Math.sin
       const flash = Math.abs(Math.sin(Date.now() / 200)) > 0.5
       if (flash) {
         ctx.fillStyle = '#ef4444'
@@ -516,7 +516,7 @@ function drawVehicle(
     }
     ctx.restore()
 
-    // Kritik durumda araç kenarı kırmızı çizgi
+    // Critical state: red border on vehicle
     if (status === 'kritik') {
       ctx.save()
       ctx.translate(cx, cy)
@@ -565,7 +565,7 @@ function drawInfoPanel(
   ctx.fillStyle = '#f59e0b'
   ctx.font = 'bold 10px monospace'
   ctx.textAlign = 'left'
-  // Sorun 1 düzeltme: frame.frame+1 yerine frameDisplayIdx kullan (slider ile uyumlu)
+  // Fix: use frameDisplayIdx instead of frame.frame+1 (consistent with slider)
   ctx.fillText(`Frame ${frameDisplayIdx} / ${totalFrames}`, 12, 11)
 
   ctx.fillStyle = '#9ca3af'
@@ -578,7 +578,7 @@ function drawInfoPanel(
     ctx.fillText(`EGO: ${ego.speed.toFixed(1)} m/s`, 12, 52)
   }
 
-  // Zoom seviyesi — sağ üst köşe
+  // Zoom level — top-right corner
   ctx.fillStyle = 'rgba(0,0,0,0.5)'
   ctx.beginPath()
   ctx.roundRect(cw - 50, 6, 44, 18, 3)
@@ -683,7 +683,7 @@ function drawEventZones(
     const { cx, cy } = toCanvas(ev.x, ev.y, t)
     const r = ev.radius_m * t.scale
 
-    // Yarı şeffaf dolgu
+    // Semi-transparent fill
     ctx.save()
     ctx.globalAlpha = 0.25
     ctx.fillStyle = ev.color ?? '#888'
@@ -692,7 +692,7 @@ function drawEventZones(
     ctx.fill()
     ctx.globalAlpha = 1
 
-    // Kesik çizgili kenar
+    // Dashed border
     ctx.strokeStyle = ev.color ?? '#888'
     ctx.lineWidth = 2
     ctx.setLineDash([6, 4])
@@ -702,7 +702,7 @@ function drawEventZones(
     ctx.setLineDash([])
     ctx.restore()
 
-    // İkon
+    // Icon
     ctx.save()
     ctx.font = `${Math.max(12, Math.min(24, r * 0.4))}px sans-serif`
     ctx.textAlign = 'center'
@@ -710,7 +710,7 @@ function drawEventZones(
     ctx.fillText(ev.icon ?? '⚠', cx, cy)
     ctx.restore()
 
-    // Olay adı ve kalan süre
+    // Event name and remaining time
     ctx.save()
     ctx.fillStyle = 'rgba(255,255,255,0.85)'
     ctx.font = '9px sans-serif'
@@ -725,7 +725,7 @@ function drawEventZones(
     ctx.restore()
   }
 
-  // Araç olay bölgesinde mi? → halka çiz
+  // Is the vehicle in an event zone? → draw ring
   for (const v of vehicles) {
     for (const ev of events) {
       const dist = Math.hypot(v.x - ev.x, v.y - ev.y)
@@ -781,7 +781,7 @@ export default function SimulationViewer() {
   const [speed, setSpeed] = useState(1)
   const [canvasSize, setCanvasSize] = useState({ w: 700, h: 500 })
 
-  // Kullanıcı zoom ve pan durumu
+  // User zoom and pan state
   const [userZoom, setUserZoom] = useState(1.0)
   const [userPan, setUserPan] = useState({ x: 0, y: 0 })
   const isDragging = useRef(false)
@@ -822,13 +822,13 @@ export default function SimulationViewer() {
     return computeTransform(roadGeometry, sampleVehicles, cw, ch)
   }, [roadGeometry, frames.length, cw, ch])
 
-  // userZoom/pan değişince transform'u yeniden hesapla
+  // Recompute transform when userZoom/pan changes
   const transform = useMemo(
     () => applyUserTransform(baseTransform, userZoom, userPan),
     [baseTransform, userZoom, userPan],
   )
 
-  // Senaryo değişince zoom/pan'ı sıfırla
+  // Reset zoom/pan when scenario changes
   useEffect(() => {
     setUserZoom(1.0)
     setUserPan({ x: 0, y: 0 })
@@ -871,7 +871,7 @@ export default function SimulationViewer() {
 
   const handleMouseUp = useCallback(() => { isDragging.current = false }, [])
 
-  // Olay yerleştirme: canvas tıklama → dünya koordinatına dönüştür
+  // Event placing: canvas click → convert to world coordinates
   const handleCanvasClick = useCallback(async (e: React.MouseEvent<HTMLCanvasElement>) => {
     const placingType = useStore.getState().eventPlacingType
     if (!placingType) return
@@ -882,7 +882,7 @@ export default function SimulationViewer() {
     const px = e.clientX - rect.left
     const py = e.clientY - rect.top
     const t = transform
-    // Canvas → dünya
+    // Canvas → world
     const wx = (px - t.offX) / t.scale
     const wy = (t.offY - py) / t.scale
 
@@ -894,7 +894,7 @@ export default function SimulationViewer() {
     setEventPlacingType(null)
   }, [transform, setActiveEvents, setEventPlacingType])
 
-  // Zoom/pan sıfırla
+  // Reset zoom/pan
   const handleReset = useCallback(() => {
     setUserZoom(1.0)
     setUserPan({ x: 0, y: 0 })
@@ -946,7 +946,7 @@ export default function SimulationViewer() {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke()
     }
 
-    // Maden arka planı — görsel varsa düşük opaklıkta göster
+    // Mine background — show at low opacity if image is available
     if (mineBackground) {
       ctx.globalAlpha = 0.10
       ctx.drawImage(mineBackground, 0, 0, cw, ch)
@@ -967,7 +967,7 @@ export default function SimulationViewer() {
     const goalReached = currentFrame.completed || false
     drawGoalPolygon(ctx, roadGeometry, t, goalReached)
 
-    // Kavşak merkezi highlight — tehlike bölgesi göstergesi
+    // Intersection center highlight — danger zone indicator
     for (const zone of roadGeometry?.conflict_zones ?? []) {
       const { cx, cy } = toCanvas(zone.x, zone.y, t)
       const r = (zone.r ?? 10) * t.scale * 0.35
@@ -977,7 +977,7 @@ export default function SimulationViewer() {
       ctx.fill()
     }
 
-    // Katman 4 — hız bazlı renk gradyanı izleri (son 60 frame)
+    // Layer 4 — speed-based color gradient trails (last 60 frames)
     const TRAIL_LEN = 60
     const trailStart = Math.max(0, currentFrameIdx - TRAIL_LEN)
     const trailFrames = frames.slice(trailStart, currentFrameIdx + 1)
@@ -1034,11 +1034,11 @@ export default function SimulationViewer() {
     })
     ctx.globalAlpha = 1
 
-    // Olay bölgelerini çiz (araçlardan önce)
+    // Draw event zones (before vehicles)
     const eventsNow = useStore.getState().activeEvents
     drawEventZones(ctx, eventsNow, t, currentFrame.time, currentFrame.vehicles)
 
-    // Olay bölgesi uyarı banner'ı
+    // Event zone warning banner
     if (eventsNow.length > 0) {
       const egoV = currentFrame.vehicles.find((v: any) => v.id === 'ego')
       if (egoV) {
@@ -1057,7 +1057,7 @@ export default function SimulationViewer() {
       }
     }
 
-    // Çarpışma tespiti (5m eşiği)
+    // Collision detection (5m threshold)
     const ego = currentFrame.vehicles.find((v: any) => v.id === 'ego')
     const collisionIds = new Set<string>()
     if (ego) {
@@ -1076,14 +1076,14 @@ export default function SimulationViewer() {
 
     drawInfoPanel(ctx, currentFrame, currentFrameIdx + 1, frames.length, collisionIds.size > 0, userZoom, cw, ch)
 
-    // Katman 7 — Kuzey oku
+    // Layer 7 — North arrow
     drawNorthArrow(ctx, cw, userZoom)
 
-    // Katman 8 — Eğim göstergesi
+    // Layer 8 — Grade indicator
     const grade = roadGeometry?.grade
     drawGradeIndicator(ctx, grade, cw, ch)
 
-    // Katman 9 — Çarpışma önleme ring
+    // Layer 9 — Collision avoidance ring
     if (ego) {
       const nearestDist = currentFrame.vehicles
         .filter((v: any) => v.id !== 'ego')
@@ -1092,7 +1092,7 @@ export default function SimulationViewer() {
       drawCollisionAvoidanceRing(ctx, ego, t, phase)
     }
 
-    // Katman 10 — Alt bilgi şeridi
+    // Layer 10 — Bottom info strip
     const scenarioType = roadGeometry?.type ?? ''
     drawBottomStrip(ctx, currentFrame, selectedScenario ?? '', scenarioType, cw, ch)
 
@@ -1125,7 +1125,7 @@ export default function SimulationViewer() {
         />
       </div>
 
-      {/* Kontroller */}
+      {/* Controls */}
       <div className="flex flex-col gap-1.5 px-3 py-2 bg-slate-800/90 border-t border-slate-700">
         <input
           type="range"
@@ -1173,7 +1173,7 @@ export default function SimulationViewer() {
             title={tr.viewer.controls.end}
           >⏭</button>
 
-          {/* Zoom sıfırla butonu */}
+          {/* Reset zoom button */}
           <button
             onClick={handleReset}
             title="Zoom ve kaydırmayı sıfırla"
